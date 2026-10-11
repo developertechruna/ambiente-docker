@@ -2,6 +2,7 @@
 # ==============================================================================
 # Script 01: Instalación de K3s (Kubernetes ligero) en el servidor
 # Obtiene la IP del nodo de forma dinámica y no utiliza IPs en duro.
+# Pasa versión explícita para evitar fallos de certificado SSL en update.k3s.io.
 # ==============================================================================
 
 set -euo pipefail
@@ -15,22 +16,32 @@ if [[ -f "${CONFIG_FILE}" ]]; then
     source "${CONFIG_FILE}"
 fi
 
+# Detectar nombre del host sin depender del comando 'hostname' (compatible con Arch Linux mínimo)
+NODE_NAME="$(uname -n 2>/dev/null || cat /etc/hostname 2>/dev/null || echo "servidor")"
+
 # Detectar la IP del nodo de forma dinámica en la máquina local/servidor
 SERVER_IP="${REMOTE_HOST:-}"
 if [[ -z "${SERVER_IP}" ]] || type get_dynamic_ip &>/dev/null; then
-    SERVER_IP="$(get_dynamic_ip 2>/dev/null || ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' || hostname -I | awk '{print $1}')"
+    SERVER_IP="$(get_dynamic_ip 2>/dev/null || ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' || ip -4 addr show scope global | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n 1 || echo "")"
+fi
+
+# Versión de K3s (evita consultar update.k3s.io cuyo certificado puede fallar)
+DESIRED_K3S_VERSION="${K3S_VERSION:-}"
+if [[ -z "${DESIRED_K3S_VERSION}" ]]; then
+    DESIRED_K3S_VERSION="$(curl -fsSL https://api.github.com/repos/k3s-io/k3s/releases 2>/dev/null | grep -m 1 -oP '"tag_name":\s*"\K(v[0-9]+\.[0-9]+\.[0-9]+\+k3s[0-9]+)' || echo "v1.31.5+k3s1")"
 fi
 
 echo "============================================================"
-echo " 🚀 Iniciando instalación de K3s en $(hostname)"
-echo " 🌐 IP dinámica detectada para TLS/SAN: ${SERVER_IP}"
+echo " 🚀 Iniciando instalación de K3s en ${NODE_NAME}"
+echo " 🌐 IP dinámica para TLS/SAN: ${SERVER_IP:-auto}"
+echo " 📦 Versión de K3s a instalar: ${DESIRED_K3S_VERSION}"
 echo "============================================================"
 
 # Verificar si se ejecuta con sudo o root
 if [[ "$(id -u)" -ne 0 ]]; then
     echo "⚠️  Este script requiere permisos de superusuario."
     echo "    Re-ejecutando con sudo..."
-    exec sudo bash "$0" "$@"
+    exec sudo REMOTE_HOST="${SERVER_IP}" K3S_VERSION="${DESIRED_K3S_VERSION}" bash "$0" "$@"
 fi
 
 # 1. Comprobar si K3s ya está instalado
@@ -42,7 +53,15 @@ else
     if [[ -n "${SERVER_IP}" ]]; then
         INSTALL_ARGS="${INSTALL_ARGS} --tls-san ${SERVER_IP}"
     fi
-    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="${INSTALL_ARGS}" sh -
+
+    # Definir INSTALL_K3S_VERSION explícitamente evita la consulta a update.k3s.io
+    export INSTALL_K3S_VERSION="${DESIRED_K3S_VERSION}"
+    export INSTALL_K3S_EXEC="${INSTALL_ARGS}"
+
+    if ! curl -sfL https://get.k3s.io | sh -; then
+        echo "⚠️  Reintentando con script espejo de GitHub..."
+        curl -sfL https://raw.githubusercontent.com/k3s-io/k3s/master/install.sh | sh -
+    fi
 fi
 
 # 2. Esperar a que el servicio esté activo y el nodo esté listo
@@ -79,7 +98,7 @@ done
 
 echo "============================================================"
 echo " ✅ Instalación de K3s completada exitosamente!"
-echo "    Versión:"
+echo "    Versión instalada:"
 k3s kubectl version --short 2>/dev/null || k3s kubectl version
 echo ""
 echo "    Estado de los nodos:"

@@ -49,7 +49,7 @@ spec:
     app: web-demo
 ---
 # Exposición 2: Ingress Traefik (integrado en K3s)
-# Sin host fijo: responde en cualquier IP o dominio en el path /demo
+# Responde en la raíz / y en /demo
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -61,7 +61,7 @@ spec:
   rules:
   - http:
       paths:
-      - path: /demo
+      - path: /
         pathType: Prefix
         backend:
           service:
