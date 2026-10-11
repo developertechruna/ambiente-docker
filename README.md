@@ -99,11 +99,13 @@ chmod +x deploy-remote.sh scripts/*.sh
 ```
 
 O si tu usuario SSH es diferente:
+
 ```bash
 ./deploy-remote.sh p3lud3v@192.168.18.228
 ```
 
 El script realizará de forma automática:
+
 1. Copia de scripts y manifiestos al servidor.
 2. Instalación de K3s configurando la IP en los certificados TLS.
 3. Despliegue del Dashboard en el puerto `30443`.
@@ -168,10 +170,18 @@ kubectl get pods -A
 ## 🚀 Desplegar y Consumir tus Aplicativos
 
 ### Desplegar aplicativo de prueba:
+
 ```bash
 kubectl apply -f manifests/sample-app/sample-app.yaml
 ```
 
 Formas de consumo:
+
 - **NodePort:** `http://<IP_DEL_SERVIDOR>:30080`
 - **Ingress Traefik:** `http://<IP_DEL_SERVIDOR>/demo`
+
+[https://192.168.18.228:30443](https://192.168.18.228:30443)
+
+hash:
+
+eyJhbGciOiJSUzI1NiIsImtpZCI6IjFoS2I2OFoxTnQ4RnVxOUUzQ0JQMks1SXY1dnRobFhrZXJrMlJUOVJjS2MifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi11c2VyLXRva2VuIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFkbWluLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI5NzU1M2I2ZC03OTA3LTQwYTAtODM0Ny0xMWI0NDk0ODEyZDUiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZXJuZXRlcy1kYXNoYm9hcmQ6YWRtaW4tdXNlciJ9.ZOuPunQEr37T7LpHL24LkR2foKzOfsJLGHJEU4ZF3thidykph6wxIG9zhD7iy8uZglS0umhi2pu6Ah3S3GhYqujFEuuD3Efx8HMVUP9GswRJbtM9zMNtjV22hPmmsCbAB5YTvjLV8wnUTnvEA_flnBEWEr5cwvWhA7apwg4qCRY89LY7Hs1OKON21vcB4A90FppUAYma25OgKeltmgeNicjh4AeSMbfOr04-cyiAUQN5ELNccDH3rldrgWOVKCZdkypJvGMGjlqC7qwwgc805ZZgGESoCFg5HWZESIlFpCbzb1Wwip7xDkDehTw7m4HrLsUuyfLNPNx979n4JtP42A

@@ -1,0 +1,119 @@
+# ==============================================================================
+# Despliegue de PostgreSQL con Almacenamiento Persistente en Kubernetes (K3s)
+# ==============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: databases
+---
+# 1. Credenciales y configuración de la Base de Datos
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: databases
+type: Opaque
+stringData:
+  POSTGRES_DB: app_task
+  POSTGRES_USER: app_task
+  POSTGRES_PASSWORD: "REDACTED_POSTGRES_PASSWORD"
+---
+# 2. Volumen Persistente (PVC)
+# Usa el storage provisioner 'local-path' integrado en K3s
+# Los datos NO se pierden al reiniciar o actualizar el Pod
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: databases
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+# 3. Despliegue de PostgreSQL (StatefulSet recomendado para bases de datos)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: databases
+  labels:
+    app: postgres
+spec:
+  serviceName: postgres-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+          name: postgres
+        envFrom:
+        - secretRef:
+            name: postgres-secret
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - app_task
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - app_task
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+# 4. Servicio de Red (LoadBalancer en K3s)
+# K3s incluye Klipper LB, lo que enlaza automáticamente el puerto 5432
+# a la IP del servidor (192.168.18.228:5432) para consumirlo tanto desde
+# dentro del cluster como desde fuera (DBeaver, Spring Boot, etc.).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-svc
+  namespace: databases
+  labels:
+    app: postgres
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+  selector:
+    app: postgres
