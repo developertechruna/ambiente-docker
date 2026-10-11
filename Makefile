@@ -10,7 +10,12 @@ ifdef HOST
 REMOTE_HOST := $(HOST)
 endif
 
-.PHONY: all help deploy token kubeconfig status deploy-sample remove-sample deploy-postgres status-postgres remove-postgres clean
+.PHONY: all help deploy token kubeconfig status deploy-sample remove-sample \
+        deploy-postgres status-postgres remove-postgres \
+        deploy-oracle status-oracle logs-oracle remove-oracle \
+        deploy-app deploy-backend deploy-frontend deploy-ingress \
+        status-app logs-backend logs-frontend remove-app \
+        build-and-deploy-app build-and-deploy-backend build-and-deploy-frontend clean
 
 all: help
 
@@ -25,10 +30,30 @@ help:
 	@echo "   make kubeconfig [HOST=x.x.x] - Configura kubectl en esta PC local"
 	@echo "   make status [HOST=x.x.x.x]   - Consulta el estado general del cluster"
 	@echo ""
-	@echo " Base de Datos (PostgreSQL):"
+	@echo " Bases de Datos (Databases):"
 	@echo "   make deploy-postgres         - Despliega PostgreSQL con PVC (10GB) y puerto 5432"
 	@echo "   make status-postgres         - Consulta estado, Pods y PVC de Postgres"
+	@echo "   make stop-postgres           - Detiene el pod de PostgreSQL (libera RAM)"
+	@echo "   make start-postgres          - Enciende el pod de PostgreSQL"
 	@echo "   make remove-postgres         - Elimina el despliegue de Postgres"
+	@echo "   make deploy-oracle           - Despliega Oracle 19c con PVC (20GB) y puerto 1521"
+	@echo "   make status-oracle           - Consulta estado, Pod y PVC de Oracle 19c"
+	@echo "   make logs-oracle             - Ver logs de arranque de Oracle 19c"
+	@echo "   make stop-oracle             - Detiene el pod de Oracle (libera 4GB RAM)"
+	@echo "   make start-oracle            - Enciende el pod de Oracle"
+	@echo "   make remove-oracle           - Elimina el despliegue de Oracle 19c"
+	@echo ""
+	@echo " Aplicativos Desacoplados (Frontend y Backend):"
+	@echo "   make deploy-app              - Despliega Frontend + Backend + Ingress"
+	@echo "   make deploy-backend          - Despliega solo el Backend (Spring Boot 3)"
+	@echo "   make deploy-frontend         - Despliega solo el Frontend (Angular 18 / Nginx)"
+	@echo "   make status-app              - Consulta Pods, Services e Ingress de tasks-app"
+	@echo "   make logs-backend            - Logs en vivo del Pod de Backend"
+	@echo "   make logs-frontend           - Logs en vivo del Pod de Frontend"
+	@echo "   make build-and-deploy-app    - Compila y despliega ambos aplicativos"
+	@echo "   make build-and-deploy-backend- Compila y despliega solo Backend"
+	@echo "   make build-and-deploy-frontend Compila y despliega solo Frontend"
+	@echo "   make remove-app              - Elimina aplicativo tasks-app"
 	@echo ""
 	@echo " Aplicación de prueba:"
 	@echo "   make deploy-sample           - Despliega app de prueba (NodePort/Ingress)"
@@ -60,12 +85,100 @@ deploy-postgres:
 status-postgres:
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n databases get statefulset,pods,svc,pvc"
 
+stop-postgres:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n databases scale statefulset postgres --replicas=0"
+	@echo "🛑 Pod de PostgreSQL detenido (RAM liberada, datos preservados)."
+
+start-postgres:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n databases scale statefulset postgres --replicas=1"
+	@echo "▶️  Pod de PostgreSQL encendido."
+
 remove-postgres:
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl delete -f ~/k8s-setup/manifests/postgres/postgres.yaml"
 
+# ==============================================================================
+# Oracle Database 19c
+# ==============================================================================
+deploy-oracle:
+	@echo "📦 Copiando y aplicando manifiesto de Oracle 19c en $(REMOTE_HOST)..."
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/oracle19c"
+	@scp -r manifests/oracle19c/* $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/oracle19c/
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl apply -f ~/k8s-setup/manifests/oracle19c/oracle19c.yaml"
+	@echo "✅ Oracle 19c desplegado en el namespace 'databases'."
+	@echo "   Puerto TNS expuesto: $(REMOTE_HOST):1521"
+	@echo "   SID: ORCLCDB  |  PDB: ORCLPDB1"
+	@echo "   Usuario: system  |  Contraseña: REDACTED_ORACLE_PASSWORD"
+
+status-oracle:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n databases get statefulset,pods,svc,pvc -l app=oracle19c"
+
+logs-oracle:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n databases logs -f oracle19c-0"
+
+stop-oracle:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n databases scale statefulset oracle19c --replicas=0"
+	@echo "🛑 Pod de Oracle 19c detenido (RAM y CPU liberados, datos preservados en PVC)."
+
+start-oracle:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n databases scale statefulset oracle19c --replicas=1"
+	@echo "▶️  Pod de Oracle 19c encendido."
+
+remove-oracle:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl delete -f ~/k8s-setup/manifests/oracle19c/oracle19c.yaml"
+
+# ==============================================================================
+# Aplicativos Desacoplados (Frontend y Backend)
+# ==============================================================================
+deploy-app:
+	@echo "📦 Sincronizando y aplicando manifiestos de tasks-app en $(REMOTE_HOST)..."
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/app-task"
+	@scp -r manifests/app-task/* $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/app-task/
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl apply -f ~/k8s-setup/manifests/app-task/"
+	@echo "✅ Aplicativos desplegados en namespace 'tasks-app'."
+	@echo "   Frontend Web: http://$(REMOTE_HOST)/"
+	@echo "   Backend REST: http://$(REMOTE_HOST)/api/"
+	@echo "   NodePort:     http://$(REMOTE_HOST):30080"
+
+deploy-backend:
+	@scp manifests/app-task/01-namespace.yaml manifests/app-task/02-backend.yaml $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/app-task/
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl apply -f ~/k8s-setup/manifests/app-task/01-namespace.yaml -f ~/k8s-setup/manifests/app-task/02-backend.yaml"
+
+deploy-frontend:
+	@scp manifests/app-task/01-namespace.yaml manifests/app-task/03-frontend.yaml $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/app-task/
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl apply -f ~/k8s-setup/manifests/app-task/01-namespace.yaml -f ~/k8s-setup/manifests/app-task/03-frontend.yaml"
+
+deploy-ingress:
+	@scp manifests/app-task/04-ingress.yaml $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/app-task/
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl apply -f ~/k8s-setup/manifests/app-task/04-ingress.yaml"
+
+status-app:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n tasks-app get pods,svc,ingress -o wide"
+
+logs-backend:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n tasks-app logs -l app=app-backend --tail=50 -f"
+
+logs-frontend:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n tasks-app logs -l app=app-frontend --tail=50 -f"
+
+remove-app:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl delete -f ~/k8s-setup/manifests/app-task/"
+
+build-and-deploy-app:
+	@cd ../scraping-outlook-web && ./desplegar-k8s.sh all
+
+build-and-deploy-backend:
+	@cd ../scraping-outlook-web && ./desplegar-k8s.sh backend
+
+build-and-deploy-frontend:
+	@cd ../scraping-outlook-web && ./desplegar-k8s.sh frontend
+
+# ==============================================================================
+# Aplicación de Prueba
+# ==============================================================================
 deploy-sample:
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl apply -f ~/k8s-setup/manifests/sample-app/sample-app.yaml"
 	@echo "App desplegada. Prueba en: http://$(REMOTE_HOST):30080 o http://$(REMOTE_HOST)/demo"
 
 remove-sample:
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl delete -f ~/k8s-setup/manifests/sample-app/sample-app.yaml"
+

@@ -1,0 +1,135 @@
+# ==============================================================================
+# Microservicio Backend: Spring Boot 3 / Java 17
+# Conexión directa a PostgreSQL en namespace 'databases'
+# ==============================================================================
+
+# 1. Credenciales de Base de Datos
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-backend-secret
+  namespace: tasks-app
+type: Opaque
+stringData:
+  DB_USER: app_task
+  DB_PASSWORD: "REDACTED_POSTGRES_PASSWORD"
+---
+# 2. Configuración del Microservicio Backend
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-backend-config
+  namespace: tasks-app
+data:
+  SERVER_PORT: "8089"
+  SERVER_CONTEXT_PATH: "/tasks"
+  # DNS interno de Kubernetes hacia el servicio de PostgreSQL en namespace databases
+  DB_HOST: "postgres-svc.databases.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "app_task"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  LOG_LEVEL: "INFO"
+---
+# 3. Despliegue del Backend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-backend
+  namespace: tasks-app
+  labels:
+    app: app-backend
+    tier: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-backend
+  template:
+    metadata:
+      labels:
+        app: app-backend
+        tier: api
+    spec:
+      containers:
+      - name: backend
+        image: app-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8089
+          name: http
+        envFrom:
+        - configMapRef:
+            name: app-backend-config
+        - secretRef:
+            name: app-backend-secret
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "1000m"
+            memory: "768Mi"
+        livenessProbe:
+          httpGet:
+            path: /tasks/actuator/health/liveness
+            port: 8089
+          initialDelaySeconds: 45
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /tasks/actuator/health/readiness
+            port: 8089
+          initialDelaySeconds: 25
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+# 4. Servicio ClusterIP del Backend
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-backend-svc
+  namespace: tasks-app
+  labels:
+    app: app-backend
+    tier: api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8089
+    targetPort: 8089
+    name: http
+  selector:
+    app: app-backend
+
+---
+# 5. Ingress Traefik del Backend (/tasks/api y /tasks/actuator)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-backend-ingress
+  namespace: tasks-app
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - http:
+      paths:
+      # Peticiones al API REST van directamente al servicio de backend
+      - path: /tasks/api
+        pathType: Prefix
+        backend:
+          service:
+            name: app-backend-svc
+            port:
+              number: 8089
+      # Métricas y Actuator van al backend
+      - path: /tasks/actuator
+        pathType: Prefix
+        backend:
+          service:
+            name: app-backend-svc
+            port:
+              number: 8089

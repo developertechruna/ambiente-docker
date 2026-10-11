@@ -180,8 +180,25 @@ Formas de consumo:
 - **NodePort:** `http://<IP_DEL_SERVIDOR>:30080`
 - **Ingress Traefik:** `http://<IP_DEL_SERVIDOR>/demo`
 
-[https://192.168.18.228:30443](https://192.168.18.228:30443)
+---
 
-hash:
+## 🗄️ Bases de Datos Disponibles (Namespace `databases`)
 
-eyJhbGciOiJSUzI1NiIsImtpZCI6IjFoS2I2OFoxTnQ4RnVxOUUzQ0JQMks1SXY1dnRobFhrZXJrMlJUOVJjS2MifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi11c2VyLXRva2VuIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFkbWluLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI5NzU1M2I2ZC03OTA3LTQwYTAtODM0Ny0xMWI0NDk0ODEyZDUiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZXJuZXRlcy1kYXNoYm9hcmQ6YWRtaW4tdXNlciJ9.ZOuPunQEr37T7LpHL24LkR2foKzOfsJLGHJEU4ZF3thidykph6wxIG9zhD7iy8uZglS0umhi2pu6Ah3S3GhYqujFEuuD3Efx8HMVUP9GswRJbtM9zMNtjV22hPmmsCbAB5YTvjLV8wnUTnvEA_flnBEWEr5cwvWhA7apwg4qCRY89LY7Hs1OKON21vcB4A90FppUAYma25OgKeltmgeNicjh4AeSMbfOr04-cyiAUQN5ELNccDH3rldrgWOVKCZdkypJvGMGjlqC7qwwgc805ZZgGESoCFg5HWZESIlFpCbzb1Wwip7xDkDehTw7m4HrLsUuyfLNPNx979n4JtP42A
+### 1. PostgreSQL 16
+- **Despliegue rápido:** `make deploy-postgres`
+- **Puerto:** `5432`
+- **Host LAN:** `192.168.18.228:5432`
+- **Host Interno:** `postgres-svc.databases:5432`
+- **Base de datos:** `app_task` | **Usuario:** `app_task` | **Password:** `REDACTED_POSTGRES_PASSWORD`
+- **Volumen Persistente:** 10 GB (`local-path`)
+
+### 2. Oracle Database 19c Enterprise
+- **Despliegue rápido:** `make deploy-oracle`
+- **Puerto TNS:** `1521` (y EM Express en `5500`)
+- **Host LAN:** `192.168.18.228:1521`
+- **Host Interno:** `oracle-svc.databases:1521`
+- **SID:** `ORCLCDB` | **PDB / Service:** `ORCLPDB1`
+- **Usuario:** `system` (o `sys as sysdba`) | **Password:** `REDACTED_ORACLE_PASSWORD`
+- **JDBC Thin URL:** `jdbc:oracle:thin:@192.168.18.228:1521/ORCLPDB1`
+- **Volumen Persistente:** 20 GB (`local-path` en `/opt/oracle/oradata`)
+- **Memoria compartida /dev/shm:** 2 GB tmpfs configurados automáticamente.

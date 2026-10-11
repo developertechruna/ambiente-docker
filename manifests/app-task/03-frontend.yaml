@@ -1,0 +1,110 @@
+# ==============================================================================
+# Aplicativo Frontend: Angular 18 + Nginx
+# Despliegue independiente en Kubernetes
+# ==============================================================================
+
+# 1. Despliegue del Frontend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-frontend
+  namespace: tasks-app
+  labels:
+    app: app-frontend
+    tier: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-frontend
+  template:
+    metadata:
+      labels:
+        app: app-frontend
+        tier: web
+    spec:
+      containers:
+      - name: frontend
+        image: app-frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "128Mi"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# 2. Servicio ClusterIP del Frontend
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-frontend-svc
+  namespace: tasks-app
+  labels:
+    app: app-frontend
+    tier: web
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+    app: app-frontend
+---
+# 3. Servicio NodePort del Frontend (Acceso directo opcional: http://192.168.18.228:30090/tasks/)
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-frontend-nodeport
+  namespace: tasks-app
+  labels:
+    app: app-frontend
+    tier: web
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30090
+    name: http
+  selector:
+    app: app-frontend
+
+---
+# 4. Ingress Traefik del Frontend (/tasks)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-frontend-ingress
+  namespace: tasks-app
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - http:
+      paths:
+      # Interfaz Web del Frontend Angular
+      - path: /tasks
+        pathType: Prefix
+        backend:
+          service:
+            name: app-frontend-svc
+            port:
+              number: 80

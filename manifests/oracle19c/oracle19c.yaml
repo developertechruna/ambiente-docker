@@ -1,0 +1,134 @@
+# ==============================================================================
+# Despliegue de Oracle Database 19c Enterprise con Almacenamiento Persistente
+# en Kubernetes (K3s)
+# ==============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: databases
+---
+# 1. Secret con las credenciales maestras y SID/PDB
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oracle-secret
+  namespace: databases
+type: Opaque
+stringData:
+  # Contraseña para SYS, SYSTEM y PDBADMIN
+  ORACLE_PWD: "REDACTED_ORACLE_PASSWORD"
+  ORACLE_SID: "ORCLCDB"
+  ORACLE_PDB: "ORCLPDB1"
+  ORACLE_CHARACTERSET: "AL32UTF8"
+---
+# 2. Volumen Persistente (PVC)
+# Usa el storage provisioner 'local-path' integrado en K3s
+# Persiste datafiles, redo logs, controlfiles en /opt/oracle/oradata
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: oracle-pvc
+  namespace: databases
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
+---
+# 3. Despliegue de Oracle 19c (StatefulSet)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: oracle19c
+  namespace: databases
+  labels:
+    app: oracle19c
+spec:
+  serviceName: oracle-svc
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oracle19c
+  template:
+    metadata:
+      labels:
+        app: oracle19c
+    spec:
+      containers:
+      - name: oracle19c
+        # Imagen de Docker Hub lista para usar sin necesidad de registro privado
+        # (Alternativa oficial: container-registry.oracle.com/database/enterprise:19.3.0.0)
+        image: cristianorosa/oracle19c:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 1521
+          name: tns
+        - containerPort: 5500
+          name: em-express
+        envFrom:
+        - secretRef:
+            name: oracle-secret
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "2Gi"
+          limits:
+            cpu: "2000m"
+            memory: "4Gi"
+        volumeMounts:
+        # Directorio de persistencia de datos oficial de Oracle 19c
+        - name: oracle-storage
+          mountPath: /opt/oracle/oradata
+        # Memoria compartida (/dev/shm) requerida por Oracle para evitar ORA-00845
+        - name: dshm
+          mountPath: /dev/shm
+        startupProbe:
+          tcpSocket:
+            port: 1521
+          # Oracle tarda entre 1 y 3 minutos en inicializar la base de datos la primera vez
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          failureThreshold: 30
+        readinessProbe:
+          tcpSocket:
+            port: 1521
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 1521
+          initialDelaySeconds: 30
+          periodSeconds: 20
+      volumes:
+      - name: oracle-storage
+        persistentVolumeClaim:
+          claimName: oracle-pvc
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 2Gi
+---
+# 4. Servicio de Red (LoadBalancer en K3s)
+# Publica el puerto 1521 (TNS Listener) y 5500 (EM Express)
+# directamente en la IP del servidor (192.168.18.228:1521)
+apiVersion: v1
+kind: Service
+metadata:
+  name: oracle-svc
+  namespace: databases
+  labels:
+    app: oracle19c
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 1521
+    targetPort: 1521
+    name: tns
+  - port: 5500
+    targetPort: 5500
+    name: em-express
+  selector:
+    app: oracle19c

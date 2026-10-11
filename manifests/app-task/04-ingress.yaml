@@ -1,0 +1,43 @@
+# ==============================================================================
+# Ingress Traefik (K3s) para Enrutamiento por Path
+# Base Path: /tasks
+# Frontend UI: http://192.168.18.228/tasks/
+# Backend API: http://192.168.18.228/tasks/api/
+# Actuator:    http://192.168.18.228/tasks/actuator/health
+# ==============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  namespace: tasks-app
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - http:
+      paths:
+      # Peticiones al API REST van al backend (prefijo /tasks/api)
+      - path: /tasks/api
+        pathType: Prefix
+        backend:
+          service:
+            name: app-backend-svc
+            port:
+              number: 8089
+      # Métricas y Actuator van al backend (prefijo /tasks/actuator)
+      - path: /tasks/actuator
+        pathType: Prefix
+        backend:
+          service:
+            name: app-backend-svc
+            port:
+              number: 8089
+      # Tráfico del aplicativo Web Frontend (prefijo /tasks)
+      - path: /tasks
+        pathType: Prefix
+        backend:
+          service:
+            name: app-frontend-svc
+            port:
+              number: 80
