@@ -220,6 +220,8 @@ Formas de consumo:
   - `/dvr` (10 GB): Almacenamiento de grabaciones y reproducción retrasada (Timeshift).
 - **Configuración Inicial:** Al abrir `http://192.168.18.228/viniplay` por primera vez, el sistema solicitará crear las credenciales del **Administrador inicial**. Luego, en la pestaña **Settings**, se añaden las listas M3U / EPG o credenciales XC.
 - **Gestión mediante Makefile:**
+  - Construir imagen personalizada con parches en K3s: `make build-viniplay`
+  - Desplegar / actualizar en K3s: `make deploy-viniplay`
   - Ver estado: `make status-viniplay`
   - Ver logs en vivo: `make logs-viniplay`
   - Pausar pod (liberar CPU/RAM): `make stop-viniplay`

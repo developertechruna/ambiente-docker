@@ -1,0 +1,188 @@
+diff --git a/public/js/main.js b/public/js/main.js
+index 9fdbf93..02341b0 100644
+--- a/public/js/main.js
++++ b/public/js/main.js
+@@ -113,7 +113,7 @@ function initializeSse() {
+     eventSource.addEventListener('activity-update', (event) => {
+         const data = JSON.parse(event.data);
+         // This will only do something if the admin page is currently active.
+-        if (window.location.pathname.startsWith('/activity')) {
++        if (window.location.pathname.includes('/activity')) {
+             handleActivityUpdate(data.live);
+         }
+     });
+@@ -462,11 +462,11 @@ function setupCoreEventListeners() {
+         if (document.visibilityState === 'visible') {
+             console.log('[MAIN] Tab is visible again, refreshing data for current page.');
+             const currentPage = window.location.pathname;
+-            if (currentPage.startsWith('/dvr')) {
++            if (currentPage.includes('/dvr')) {
+                 initDvrPage();
+-            } else if (currentPage.startsWith('/notifications')) {
++            } else if (currentPage.includes('/notifications')) {
+                 loadAndScheduleNotifications();
+-            } else if (currentPage.startsWith('/activity')) { // NEW
++            } else if (currentPage.includes('/activity')) { // NEW
+                 initActivityPage();
+             }
+         }
+diff --git a/public/js/modules/notification.js b/public/js/modules/notification.js
+index d44a456..2b3f916 100644
+--- a/public/js/modules/notification.js
++++ b/public/js/modules/notification.js
+@@ -436,8 +436,8 @@ export const navigateToProgramInGuide = async (channelId, programStart, programI
+         console.log(`[NOTIF_NAV] Navigating to program. Channel: ${channelId}, Start: ${programStart}`);
+         const stableChannelIdSuffix = channelId.includes('_') ? '_' + channelId.split('_').pop() : channelId;
+ 
+-        // No need to navigate again if we are already on the guide page from the deep link
+-        if (window.location.pathname !== '/tvguide' && window.location.pathname !== '/') {
++        const currentNavPath = window.location.pathname.replace(/^\/viniplay(\/|$)/, "/") || "/";
++        if (currentNavPath !== '/tvguide' && currentNavPath !== '/') {
+             navigate('/tvguide');
+             // Wait a moment for the page switch to happen visually.
+             await new Promise(resolve => setTimeout(resolve, 50));
+diff --git a/public/js/modules/player.js b/public/js/modules/player.js
+index c7adf77..cba7b0b 100644
+--- a/public/js/modules/player.js
++++ b/public/js/modules/player.js
+@@ -232,7 +232,7 @@ export const playChannel = (url, name, channelId) => {
+         return showNotification("Stream profile not found.", true);
+     }
+ 
+-    const streamUrlToPlay = profile.command === 'redirect' ? url : `/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}`;
++    const streamUrlToPlay = profile.command === 'redirect' ? url : `/viniplay/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}`;
+     const channel = guideState.channels.find(c => c.id === channelId);
+     const logo = channel ? channel.logo : '';
+ 
+@@ -400,7 +400,7 @@ export const playVOD = async (url, title, logo = '') => {
+     const settings = guideState.settings;
+     const profileId = settings.activeStreamProfileId;
+     const userAgentId = settings.activeUserAgentId;
+-    const profile = (settings.streamProfiles || []).find(p => p.id === profileId);
++    let profile = (settings.streamProfiles || []).find(p => p.id === profileId);
+ 
+     if (!profileId || !userAgentId || !profile) {
+         const errorMsg = "Active stream profile or user agent not set/found. Cannot play VOD via profile. Please check settings.";
+@@ -410,13 +410,24 @@ export const playVOD = async (url, title, logo = '') => {
+         return;
+     }
+ 
++    // Auto-fallback to FFmpeg transcoding for VOD container files (MKV, MP4, etc.)
++    // when 'redirect' profile is selected, as mpegts.js only supports MPEG-TS/FLV streams.
++    const isVodMedia = url.includes('.mkv') || url.includes('.mp4') || url.includes('.avi') || url.includes('/series/') || url.includes('/movie/');
++    if (profile.command === 'redirect' && isVodMedia) {
++        const ffmpegProfile = (settings.streamProfiles || []).find(p => p.id === 'ffmpeg-default');
++        if (ffmpegProfile) {
++            console.log(`[VOD_PLAYER] Auto-selected profile "${ffmpegProfile.name}" for VOD transcoding via FFmpeg.`);
++            profile = ffmpegProfile;
++        }
++    }
++
+     logToPlayerConsole(`Using Profile: ${profile.name}, User Agent ID: ${userAgentId}`);
+ 
+     // 3. Construct the stream URL
+     // VODs always go through the /stream endpoint now, unless the profile is 'redirect'
+     const streamUrlToPlay = profile.command === 'redirect'
+         ? url // If redirect, still use mpegts.js but with the direct URL
+-        : `/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}&vodName=${encodeURIComponent(title)}&vodLogo=${encodeURIComponent(logo)}`;
++        : `/viniplay/stream?url=${encodeURIComponent(url)}&profileId=${profile.id}&userAgentId=${userAgentId}&vodName=${encodeURIComponent(title)}&vodLogo=${encodeURIComponent(logo)}`;
+ 
+     console.log(`[VOD_PLAYER] Final mpegts.js stream URL: ${streamUrlToPlay}`);
+     logToPlayerConsole(`Final stream URL: ${streamUrlToPlay}`);
+@@ -424,7 +435,7 @@ export const playVOD = async (url, title, logo = '') => {
+     // Store the *original* VOD URL for potential stop requests if using /stream
+     if (profile.command !== 'redirect') {
+         currentLocalStreamUrl = url;
+-        currentProfileId = profileId; // Store the profile ID
++        currentProfileId = profile.id; // Store the profile ID
+     }
+ 
+     // --- Activity Logging for Redirect VODs (using mpegts.js) ---
+diff --git a/public/js/modules/ui.js b/public/js/modules/ui.js
+index 3d59243..b8a4d30 100644
+--- a/public/js/modules/ui.js
++++ b/public/js/modules/ui.js
+@@ -362,7 +362,8 @@ export const tempBlockConfigReload = () => {
+ export const handleRouteChange = () => {
+     const wasMultiView = currentPage.startsWith('/multiview');
+     const wasPlayer = currentPage.startsWith('/player');
+-    const path = window.location.pathname;
++    const rawPath = window.location.pathname;
++    const path = rawPath.replace(/^\/viniplay(\/|$)/, "/") || "/";
+ 
+     if (wasMultiView && !path.startsWith('/multiview')) {
+         if (isMultiViewActive()) {
+@@ -374,7 +375,7 @@ export const handleRouteChange = () => {
+                     proceedWithRouteChange(path);
+                 }
+             );
+-            window.history.pushState({}, currentPage, window.location.origin + currentPage);
++            window.history.pushState({}, currentPage, window.location.origin + "/viniplay" + (currentPage === "/" ? "" : currentPage));
+             return;
+         } else {
+             cleanupMultiView();
+@@ -391,7 +392,7 @@ export const handleRouteChange = () => {
+                     proceedWithRouteChange(path);
+                 }
+             );
+-            window.history.pushState({}, currentPage, window.location.origin + currentPage);
++            window.history.pushState({}, currentPage, window.location.origin + "/viniplay" + (currentPage === "/" ? "" : currentPage));
+             return;
+         } else {
+             cleanupDirectPlayer();
+@@ -549,8 +550,10 @@ async function proceedWithRouteChange(path) {
+  * @param {string} path - The new path to navigate to.
+  */
+ export const navigate = (path) => {
+-    if (window.location.pathname !== path) {
+-        window.history.pushState({}, path, window.location.origin + path);
++    const rawPath = window.location.pathname;
++    const current = rawPath.replace(/^\/viniplay(\/|$)/, "/") || "/";
++    if (current !== path) {
++        window.history.pushState({}, path, window.location.origin + "/viniplay" + (path === "/" ? "" : path));
+     }
+     handleRouteChange();
+ };
+diff --git a/public/js/modules/vod.js b/public/js/modules/vod.js
+index 8262e9a..b7c0337 100644
+--- a/public/js/modules/vod.js
++++ b/public/js/modules/vod.js
+@@ -152,7 +152,7 @@ function renderVodGrid() {
+             const displayLogo = item.logo || placeholderImageUrl;
+ 
+             // Use image proxy for both HTTP and HTTPS posters to avoid mixed content warnings
+-            const proxiedLogo = displayLogo.startsWith('http') ? `/api/image-proxy?url=${encodeURIComponent(displayLogo)}` : displayLogo;
++            const proxiedLogo = displayLogo.startsWith('http') ? `/viniplay/api/image-proxy?url=${encodeURIComponent(displayLogo)}` : displayLogo;
+ 
+             return `
+                 <div class="vod-item" data-id="${itemIdStr}">
+@@ -190,7 +190,7 @@ async function openVodDetails(item) { // Make the function async
+ 
+     // Use image proxy for modal posters/backdrops
+     const posterUrl = item.logo || `https://placehold.co/400x600/1f2937/d1d5db?text=${encodeURIComponent(item.name)}`;
+-    const proxiedPoster = posterUrl.startsWith('http') ? `/api/image-proxy?url=${encodeURIComponent(posterUrl)}` : posterUrl;
++    const proxiedPoster = posterUrl.startsWith('http') ? `/viniplay/api/image-proxy?url=${encodeURIComponent(posterUrl)}` : posterUrl;
+     UIElements.vodDetailsPoster.src = proxiedPoster;
+     UIElements.vodDetailsBackdropImg.src = item.logo ? proxiedPoster : '';
+ 
+diff --git a/server.js b/server.js
+index 114a601..ad41523 100644
+--- a/server.js
++++ b/server.js
+@@ -374,13 +374,15 @@ if (sessionSecret.includes('replace_this')) {
+     console.warn('[SECURITY] Using a weak or default SESSION_SECRET. Please replace it.');
+ }
+ 
++app.set('trust proxy', 1);
++
+ app.use(
+     session({
+         store: new SQLiteStore({ db: 'viniplay.db', dir: DATA_DIR, table: 'sessions' }),
+         secret: sessionSecret,
+         resave: false,
+         saveUninitialized: false,
+-        cookie: { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.NODE_ENV === 'production' },
++        cookie: { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === 'true' },
+     })
+ );
+ 

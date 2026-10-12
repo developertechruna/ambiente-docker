@@ -45,6 +45,7 @@ help:
 	@echo "   make remove-oracle           - Elimina el despliegue de Oracle 19c"
 	@echo ""
 	@echo " Streaming IPTV & Multimedia:"
+	@echo "   make build-viniplay          - Construye la imagen personalizada viniplay:custom con parches en k3s"
 	@echo "   make deploy-viniplay         - Despliega ViniPlay (Web IPTV/DVR) en http://$(REMOTE_HOST)/viniplay"
 	@echo "   make status-viniplay         - Consulta estado, Pod, PVC, Service e Ingress de ViniPlay"
 	@echo "   make logs-viniplay           - Ver logs en vivo del contenedor ViniPlay"
@@ -138,6 +139,13 @@ remove-oracle:
 # ==============================================================================
 # ViniPlay - IPTV Streaming Web Player & TV Guide & DVR
 # ==============================================================================
+build-viniplay:
+	@echo "🔨 Construyendo imagen viniplay:custom en $(REMOTE_HOST)..."
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/viniplay"
+	@scp manifests/viniplay/Dockerfile manifests/viniplay/viniplay-subpath.patch $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/viniplay/
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "podman build -t viniplay:custom -f ~/k8s-setup/manifests/viniplay/Dockerfile ~/k8s-setup/manifests/viniplay && podman save localhost/viniplay:custom | sudo k3s ctr images import -"
+	@echo "✅ Imagen viniplay:custom construida e importada en k3s containerd."
+
 deploy-viniplay:
 	@echo "📦 Copiando y aplicando manifiesto de ViniPlay en $(REMOTE_HOST)..."
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/viniplay"

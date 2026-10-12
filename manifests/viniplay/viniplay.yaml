@@ -155,65 +155,8 @@ spec:
       containers:
       # Contenedor 1: Backend Node.js + FFMPEG ViniPlay
       - name: viniplay
-        image: ardovini/viniplay:latest
+        image: localhost/viniplay:custom
         imagePullPolicy: IfNotPresent
-        command: ["/bin/bash", "-c"]
-        args:
-        - |
-          node -e '
-          const fs = require("fs");
-          
-          // 1. Desactivar cookie seguro (permite sesiones en HTTP no seguro) y habilitar trust proxy
-          let srv = fs.readFileSync("/usr/src/app/server.js", "utf8");
-          srv = srv.replace("secure: process.env.NODE_ENV === \x27production\x27", "secure: false");
-          if (!srv.includes("trust proxy")) {
-              srv = srv.replace("const app = express();", "const app = express();\napp.set(\x27trust proxy\x27, 1);");
-          }
-          fs.writeFileSync("/usr/src/app/server.js", srv);
-
-          // 2. Parche en router cliente (ui.js, main.js, notification.js, vod.js) para preservar subpath /viniplay
-          let ui = fs.readFileSync("/usr/src/app/public/js/modules/ui.js", "utf8");
-          ui = ui.replace("const path = window.location.pathname;", "const rawPath = window.location.pathname; const path = rawPath.replace(/^\\/viniplay(\\/|$)/, \"/\") || \"/\";");
-          ui = ui.replace("if (window.location.pathname !== path)", "if (window.location.pathname.replace(/^\\/viniplay(\\/|$)/, \"/\") !== path)");
-          ui = ui.replace("window.location.origin + path", "window.location.origin + \"/viniplay\" + (path === \"/\" ? \"\" : path)");
-          ui = ui.replaceAll("window.location.origin + currentPage", "window.location.origin + \"/viniplay\" + (currentPage === \"/\" ? \"\" : currentPage)");
-          fs.writeFileSync("/usr/src/app/public/js/modules/ui.js", ui);
-
-          let main = fs.readFileSync("/usr/src/app/public/js/main.js", "utf8");
-          main = main.replace("window.location.pathname.startsWith(\x27/activity\x27)", "window.location.pathname.includes(\x27/activity\x27)");
-          main = main.replace("currentPage.startsWith(\x27/tvguide\x27)", "currentPage.includes(\x27/tvguide\x27)");
-          main = main.replace("currentPage.startsWith(\x27/dvr\x27)", "currentPage.includes(\x27/dvr\x27)");
-          main = main.replace("currentPage.startsWith(\x27/notifications\x27)", "currentPage.includes(\x27/notifications\x27)");
-          main = main.replace("currentPage.startsWith(\x27/activity\x27)", "currentPage.includes(\x27/activity\x27)");
-          fs.writeFileSync("/usr/src/app/public/js/main.js", main);
-
-          let notif = fs.readFileSync("/usr/src/app/public/js/modules/notification.js", "utf8");
-          notif = notif.replace("window.location.pathname !== \x27/tvguide\x27", "!window.location.pathname.includes(\x27/tvguide\x27)");
-          fs.writeFileSync("/usr/src/app/public/js/modules/notification.js", notif);
-
-          let vod = fs.readFileSync("/usr/src/app/public/js/modules/vod.js", "utf8");
-          vod = vod.replaceAll("\`/api/image-proxy?", "\`/viniplay/api/image-proxy?");
-          fs.writeFileSync("/usr/src/app/public/js/modules/vod.js", vod);
-
-          let pl = fs.readFileSync("/usr/src/app/public/js/modules/player.js", "utf8");
-          pl = pl.replaceAll("\`/stream?", "\`/viniplay/stream?");
-          pl = pl.replace(
-              "const streamUrlToPlay = profile.command === \x27redirect\x27",
-              "const activeVODProfile = (profile.command === \x27redirect\x27 && (url.includes(\x27.mkv\x27) || url.includes(\x27.mp4\x27) || url.includes(\x27/series/\x27) || url.includes(\x27/movie/\x27)))\n        ? (settings.streamProfiles.find(p => p.id === \x27ffmpeg-default\x27) || profile)\n        : profile;\n    const streamUrlToPlay = activeVODProfile.command === \x27redirect\x27"
-          );
-          pl = pl.replace("profileId=${profileId}&userAgentId", "profileId=${activeVODProfile.id}&userAgentId");
-          pl = pl.replace("if (profile.command !== \x27redirect\x27)", "if (activeVODProfile.command !== \x27redirect\x27)");
-          pl = pl.replace("currentProfileId = profileId;", "currentProfileId = activeVODProfile.id;");
-          fs.writeFileSync("/usr/src/app/public/js/modules/player.js", pl);
-
-          // 3. Limpiar sesiones obsoletas guardadas con secure: true
-          const sqlite3 = require("sqlite3").verbose();
-          const db = new sqlite3.Database("/data/viniplay.db");
-          db.run("DELETE FROM sessions WHERE sess LIKE \x27%\"secure\":true%\x27;", () => {
-              console.log("[VINI_PLAY_PATCH] Servidor y cliente adaptados con éxito (cookie.secure=false, trust proxy, subpath /viniplay, image-proxy, stream-vod).");
-          });
-          '
-          exec npm start
         ports:
         - containerPort: 8998
           name: nodejs
