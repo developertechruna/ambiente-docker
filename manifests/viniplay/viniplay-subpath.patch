@@ -1,5 +1,5 @@
 diff --git a/public/index.html b/public/index.html
-index ef6ebf9..21875cd 100644
+index ef6ebf9..fd0cb6b 100644
 --- a/public/index.html
 +++ b/public/index.html
 @@ -4,6 +4,7 @@
@@ -114,7 +114,7 @@ index ef6ebf9..21875cd 100644
  
  
 -    <script type="module" src="/js/main.js?v=2"></script>
-+    <script type="module" src="/js/main.js?v=4"></script>
++    <script type="module" src="/js/main.js?v=5"></script>
  
      <div id="processing-status-modal"
          class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4">
@@ -407,10 +407,10 @@ index e9b1f47..7dcb920 100644
              body: JSON.stringify({ streamUrl: url })
 diff --git a/public/js/modules/dashboard.js b/public/js/modules/dashboard.js
 new file mode 100644
-index 0000000..a11d783
+index 0000000..e0847c8
 --- /dev/null
 +++ b/public/js/modules/dashboard.js
-@@ -0,0 +1,296 @@
+@@ -0,0 +1,327 @@
 +/**
 + * dashboard.js
 + * Manages the User Dashboard: Continue Watching carousel, Series Hub progress,
@@ -444,6 +444,7 @@ index 0000000..a11d783
 +    if (refreshBtn && !refreshBtn.dataset.hasListener) {
 +        refreshBtn.dataset.hasListener = 'true';
 +        refreshBtn.addEventListener('click', () => {
++            console.log('[DASHBOARD] Manual refresh triggered');
 +            loadContinueWatching();
 +            loadSeriesSummary();
 +        });
@@ -471,22 +472,37 @@ index 0000000..a11d783
 +
 +    grid.innerHTML = '<div class="col-span-full py-8 text-center text-gray-400">Cargando contenido en curso...</div>';
 +
-+    const res = await apiFetch('/api/vod/continue-watching');
-+    const items = res?.items || [];
++    try {
++        const res = await apiFetch('/api/vod/continue-watching');
++        if (!res || !res.ok) {
++            console.warn('[DASHBOARD] Failed to fetch continue-watching:', res?.status);
++            grid.innerHTML = '';
++            emptyMsg?.classList.remove('hidden');
++            return;
++        }
 +
-+    if (items.length === 0) {
++        const data = await res.json();
++        console.log('[DASHBOARD] Continue-watching data received:', data);
++        const items = data?.items || [];
++
++        if (items.length === 0) {
++            grid.innerHTML = '';
++            emptyMsg?.classList.remove('hidden');
++            return;
++        }
++
++        emptyMsg?.classList.add('hidden');
++        grid.innerHTML = '';
++
++        items.forEach(item => {
++            const card = createContinueCard(item);
++            grid.appendChild(card);
++        });
++    } catch (err) {
++        console.error('[DASHBOARD] Error parsing continue-watching:', err);
 +        grid.innerHTML = '';
 +        emptyMsg?.classList.remove('hidden');
-+        return;
 +    }
-+
-+    emptyMsg?.classList.add('hidden');
-+    grid.innerHTML = '';
-+
-+    items.forEach(item => {
-+        const card = createContinueCard(item);
-+        grid.appendChild(card);
-+    });
 +}
 +
 +/**
@@ -581,7 +597,7 @@ index 0000000..a11d783
 +    dismissBtn.addEventListener('click', async (e) => {
 +        e.stopPropagation();
 +        try {
-+            await apiFetch(`/api/vod/progress/${item.contentId}`, { method: 'DELETE' });
++            await apiFetch(`/api/vod/progress/${encodeURIComponent(item.contentId)}`, { method: 'DELETE' });
 +            showNotification('Eliminado de continuar viendo', false, 2000);
 +            card.remove();
 +            const grid = document.getElementById('dashboard-continue-grid');
@@ -606,22 +622,37 @@ index 0000000..a11d783
 +
 +    grid.innerHTML = '<div class="col-span-full py-6 text-center text-gray-400">Cargando series en curso...</div>';
 +
-+    const res = await apiFetch('/api/vod/series-summary');
-+    const seriesList = res?.series || [];
++    try {
++        const res = await apiFetch('/api/vod/series-summary');
++        if (!res || !res.ok) {
++            console.warn('[DASHBOARD] Failed to fetch series-summary:', res?.status);
++            grid.innerHTML = '';
++            emptyMsg?.classList.remove('hidden');
++            return;
++        }
 +
-+    if (seriesList.length === 0) {
++        const data = await res.json();
++        console.log('[DASHBOARD] Series-summary data received:', data);
++        const seriesList = data?.series || [];
++
++        if (seriesList.length === 0) {
++            grid.innerHTML = '';
++            emptyMsg?.classList.remove('hidden');
++            return;
++        }
++
++        emptyMsg?.classList.add('hidden');
++        grid.innerHTML = '';
++
++        seriesList.forEach(s => {
++            const card = createSeriesSummaryCard(s);
++            grid.appendChild(card);
++        });
++    } catch (err) {
++        console.error('[DASHBOARD] Error parsing series-summary:', err);
 +        grid.innerHTML = '';
 +        emptyMsg?.classList.remove('hidden');
-+        return;
 +    }
-+
-+    emptyMsg?.classList.add('hidden');
-+    grid.innerHTML = '';
-+
-+    seriesList.forEach(s => {
-+        const card = createSeriesSummaryCard(s);
-+        grid.appendChild(card);
-+    });
 +}
 +
 +/**
