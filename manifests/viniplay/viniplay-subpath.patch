@@ -1,5 +1,5 @@
 diff --git a/public/index.html b/public/index.html
-index ef6ebf9..b8a00ff 100644
+index ef6ebf9..21875cd 100644
 --- a/public/index.html
 +++ b/public/index.html
 @@ -4,6 +4,7 @@
@@ -10,17 +10,116 @@ index ef6ebf9..b8a00ff 100644
      <title>VINI PLAY</title>
      <link rel="icon" type="image/png" href="/viniplay.png">
      <script src="https://cdn.tailwindcss.com"></script>
-@@ -2951,7 +2952,7 @@
+@@ -1259,7 +1260,15 @@
+                 <h1 class="text-xl sm:text-2xl font-bold">VINI PLAY</h1>
+             </div>
+             <div class="flex items-center gap-4">
+-                <span id="user-display" class="text-sm text-gray-400 hidden sm:block"></span>
++                <button id="user-display"
++                    class="hidden sm:inline-flex items-center gap-2 text-xs sm:text-sm font-semibold py-1 px-3 rounded-full bg-gray-700/80 hover:bg-gray-700 text-gray-200 border border-gray-600 hover:border-blue-400 transition-all cursor-pointer shadow-sm group"
++                    title="Mi Dashboard de Contenido">
++                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
++                    <span id="user-display-name" class="group-hover:text-blue-300 transition-colors"></span>
++                    <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
++                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
++                    </svg>
++                </button>
+                 <div class="hidden lg:flex gap-2">
+                     <button id="tab-guide"
+                         class="tab-button text-sm sm:text-base font-medium py-2 px-4 text-gray-300 hover:bg-gray-700 active rounded-md transition-colors">TV
+@@ -1638,6 +1647,70 @@
+                 </div>
+             </div>
+ 
++            <!-- Dashboard Page: Continuar Viendo y Resumen de Series -->
++            <div id="page-dashboard" class="hidden flex-grow flex-col items-center p-4 sm:p-6 overflow-y-auto custom-scrollbar">
++                <div class="w-full max-w-7xl mx-auto space-y-8 pb-16">
++                    <!-- Dashboard Header -->
++                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-700 pb-4">
++                        <div class="flex items-center gap-3">
++                            <span class="p-2.5 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30">
++                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
++                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
++                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
++                                </svg>
++                            </span>
++                            <div>
++                                <h2 class="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2">
++                                    Dashboard de <span id="dashboard-user-badge" class="text-blue-400">Usuario</span>
++                                </h2>
++                                <p class="text-sm text-gray-400 mt-0.5">Continúa viendo donde lo dejaste y revisa el resumen de tus series</p>
++                            </div>
++                        </div>
++                        <button id="dashboard-refresh-btn" class="self-start sm:self-auto bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-sm font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2 cursor-pointer shadow">
++                            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
++                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
++                            </svg>
++                            Actualizar
++                        </button>
++                    </div>
++
++                    <!-- Section 1: Continuar Viendo -->
++                    <section class="space-y-4">
++                        <div class="flex items-center justify-between">
++                            <h3 class="text-xl font-bold text-white flex items-center gap-2">
++                                <span class="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse"></span>
++                                Continuar Viendo
++                            </h3>
++                        </div>
++                        <div id="dashboard-continue-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
++                            <!-- Injected dynamically -->
++                        </div>
++                        <div id="dashboard-continue-empty" class="hidden py-12 text-center bg-gray-800/40 border border-gray-700/60 rounded-xl">
++                            <div class="text-gray-400 text-base font-medium">No tienes contenido en curso</div>
++                            <p class="text-xs text-gray-500 mt-1">Cuando comiences a ver películas o episodios en VOD, aparecerán aquí para retomarlos.</p>
++                        </div>
++                    </section>
++
++                    <!-- Section 2: Series en Curso -->
++                    <section class="space-y-4">
++                        <div class="flex items-center justify-between">
++                            <h3 class="text-xl font-bold text-white flex items-center gap-2">
++                                <span class="w-2.5 h-2.5 bg-purple-500 rounded-full"></span>
++                                Series en Curso
++                            </h3>
++                        </div>
++                        <div id="dashboard-series-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
++                            <!-- Injected dynamically -->
++                        </div>
++                        <div id="dashboard-series-empty" class="hidden py-12 text-center bg-gray-800/40 border border-gray-700/60 rounded-xl">
++                            <div class="text-gray-400 text-base font-medium">No has iniciado ninguna serie</div>
++                            <p class="text-xs text-gray-500 mt-1">Tu progreso de episodios y temporadas vistas se resumirá aquí.</p>
++                        </div>
++                    </section>
++                </div>
++            </div>
++
++
+             <!-- Admin Activity Page -->
+             <div id="page-activity" class="hidden flex-grow flex-col items-start p-4 overflow-y-auto custom-scrollbar">
+                 <div class="w-full max-w-7xl mx-auto space-y-6 pb-16">
+@@ -2283,6 +2356,10 @@
+                 class="text-left tab-button text-lg font-medium py-2 px-3 text-gray-300 hover:bg-gray-800 rounded-md transition-colors">
+                 <span class="flex items-center gap-2"><span data-icon="dvr"></span> DVR</span>
+             </button>
++            <button id="mobile-nav-dashboard"
++                class="text-left tab-button text-lg font-medium py-2 px-3 text-gray-300 hover:bg-gray-800 rounded-md transition-colors">
++                <span class="flex items-center gap-2"><span data-icon="dashboard"></span> Mi Dashboard</span>
++            </button>
+             <button id="mobile-nav-vod"
+                 class="text-left tab-button text-lg font-medium py-2 px-3 text-gray-300 hover:bg-gray-800 rounded-md transition-colors">
+                 <span class="flex items-center gap-2"><span data-icon="multiview"></span> VODs</span>
+@@ -2951,7 +3028,7 @@
      </div>
  
  
 -    <script type="module" src="/js/main.js?v=2"></script>
-+    <script type="module" src="/js/main.js?v=3"></script>
++    <script type="module" src="/js/main.js?v=4"></script>
  
      <div id="processing-status-modal"
          class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4">
 diff --git a/public/js/main.js b/public/js/main.js
-index 9fdbf93..65b330c 100644
+index 9fdbf93..5a6b240 100644
 --- a/public/js/main.js
 +++ b/public/js/main.js
 @@ -20,6 +20,7 @@ import { setupDvrEventListeners, handleDvrChannelClick, initDvrPage } from './mo
@@ -58,7 +157,20 @@ index 9fdbf93..65b330c 100644
          if (currentPage.startsWith('/tvguide') || currentPage === '/') {
              // Stop the main player if it's open, then play the new channel.
              stopAndCleanupPlayer().then(() => {
-@@ -461,12 +462,12 @@ function setupCoreEventListeners() {
+@@ -444,6 +445,12 @@ function setupCoreEventListeners() {
+     UIElements.mobileNavPlayer?.addEventListener('click', () => switchTab('player'));
+     UIElements.mobileNavDvr?.addEventListener('click', () => switchTab('dvr'));
+     UIElements.mobileNavVod?.addEventListener('click', () => switchTab('vod'));
++    UIElements.userDisplay?.addEventListener('click', (e) => {
++        e.preventDefault();
++        switchTab('dashboard');
++    });
++    UIElements.mobileNavDashboard?.addEventListener('click', () => switchTab('dashboard'));
++
+     UIElements.mobileNavActivity?.addEventListener('click', () => switchTab('activity')); // NEW
+     UIElements.mobileNavNotifications?.addEventListener('click', () => switchTab('notifications'));
+     UIElements.mobileNavSettings?.addEventListener('click', () => switchTab('settings'));
+@@ -461,12 +468,12 @@ function setupCoreEventListeners() {
      document.addEventListener('visibilitychange', () => {
          if (document.visibilityState === 'visible') {
              console.log('[MAIN] Tab is visible again, refreshing data for current page.');
@@ -73,7 +185,7 @@ index 9fdbf93..65b330c 100644
                  initActivityPage();
              }
          }
-@@ -578,7 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
+@@ -578,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
      // Register Service Worker
      if ('serviceWorker' in navigator && 'PushManager' in window) {
          console.log('[APP_START] Service Worker and Push API are supported by browser.');
@@ -132,7 +244,7 @@ index 8a4302b..6b36350 100644
          return null;
      }
 diff --git a/public/js/modules/auth.js b/public/js/modules/auth.js
-index 19375f6..a91473a 100644
+index 19375f6..4c2328d 100644
 --- a/public/js/modules/auth.js
 +++ b/public/js/modules/auth.js
 @@ -5,7 +5,8 @@
@@ -145,7 +257,21 @@ index 19375f6..a91473a 100644
  
  /**
   * Populates the UIElements object with references to DOM elements.
-@@ -318,7 +319,7 @@ export async function checkAuthStatus() {
+@@ -291,7 +292,12 @@ const showApp = (user) => {
+     // This will now be handled exclusively by proceedWithRouteChange in ui.js,
+     // which acts as the single source of truth for UI state based on routes and permissions.
+     // This prevents race conditions during app initialization.
+-    UIElements.userDisplay.textContent = user.username;
++    const userDisplayName = document.getElementById('user-display-name');
++    if (userDisplayName) {
++        userDisplayName.textContent = user.username;
++    } else if (UIElements.userDisplay) {
++        UIElements.userDisplay.textContent = user.username;
++    }
+     UIElements.userDisplay.classList.remove('hidden');
+ 
+     console.log(`[AUTH_UI] User display set to: ${user.username}.`);
+@@ -318,7 +324,7 @@ export async function checkAuthStatus() {
      loginError.classList.add('hidden'); // Clear any previous errors
  
      try {
@@ -154,7 +280,7 @@ index 19375f6..a91473a 100644
          if (!res.ok) {
              console.warn(`[AUTH] /api/auth/status returned non-OK status: ${res.status} ${res.statusText}`);
          }
-@@ -330,7 +331,7 @@ export async function checkAuthStatus() {
+@@ -330,7 +336,7 @@ export async function checkAuthStatus() {
              showApp(status.user);
          } else {
              console.log('[AUTH] User not logged in. Checking if setup is needed...');
@@ -163,7 +289,7 @@ index 19375f6..a91473a 100644
              if (!setupRes.ok) {
                  console.warn(`[AUTH] /api/auth/needs-setup returned non-OK status: ${setupRes.status} ${setupRes.statusText}`);
              }
-@@ -378,7 +379,7 @@ export function setupAuthEventListeners() {
+@@ -378,7 +384,7 @@ export function setupAuthEventListeners() {
          const password = loginPassword.value;
  
          try {
@@ -172,7 +298,7 @@ index 19375f6..a91473a 100644
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({ username, password })
-@@ -409,7 +410,7 @@ export function setupAuthEventListeners() {
+@@ -409,7 +415,7 @@ export function setupAuthEventListeners() {
          const password = setupPassword.value;
  
          try {
@@ -181,7 +307,7 @@ index 19375f6..a91473a 100644
                  method: 'POST',
                  headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({ username, password })
-@@ -435,7 +436,7 @@ export function setupAuthEventListeners() {
+@@ -435,7 +441,7 @@ export function setupAuthEventListeners() {
      logoutBtn.addEventListener('click', async () => {
          console.log('[AUTH_EVENT] Logout button clicked.');
          try {
@@ -279,6 +405,308 @@ index e9b1f47..7dcb920 100644
              method: 'POST',
              headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify({ streamUrl: url })
+diff --git a/public/js/modules/dashboard.js b/public/js/modules/dashboard.js
+new file mode 100644
+index 0000000..a11d783
+--- /dev/null
++++ b/public/js/modules/dashboard.js
+@@ -0,0 +1,296 @@
++/**
++ * dashboard.js
++ * Manages the User Dashboard: Continue Watching carousel, Series Hub progress,
++ * and seamless one-click resume playback.
++ */
++
++import { apiFetch } from './api.js';
++import { appState, UIElements } from './state.js';
++import { playVOD } from './player.js';
++import { withBase } from './basePath.js';
++import { showNotification } from './ui.js';
++import { ICONS } from './icons.js';
++
++let isDashboardLoading = false;
++
++/**
++ * Initializes and populates the Dashboard view.
++ * Called by the SPA router when navigating to /dashboard.
++ */
++export async function initDashboardPage() {
++    if (isDashboardLoading) return;
++    isDashboardLoading = true;
++    console.log('[DASHBOARD] Initializing Dashboard Page...');
++
++    const userBadge = document.getElementById('dashboard-user-badge');
++    if (userBadge) {
++        userBadge.textContent = appState.currentUser?.username || 'Usuario';
++    }
++
++    const refreshBtn = document.getElementById('dashboard-refresh-btn');
++    if (refreshBtn && !refreshBtn.dataset.hasListener) {
++        refreshBtn.dataset.hasListener = 'true';
++        refreshBtn.addEventListener('click', () => {
++            loadContinueWatching();
++            loadSeriesSummary();
++        });
++    }
++
++    try {
++        await Promise.all([
++            loadContinueWatching(),
++            loadSeriesSummary()
++        ]);
++    } catch (err) {
++        console.error('[DASHBOARD] Error loading dashboard data:', err);
++    } finally {
++        isDashboardLoading = false;
++    }
++}
++
++/**
++ * Fetches and renders in-progress movies and episodes.
++ */
++async function loadContinueWatching() {
++    const grid = document.getElementById('dashboard-continue-grid');
++    const emptyMsg = document.getElementById('dashboard-continue-empty');
++    if (!grid) return;
++
++    grid.innerHTML = '<div class="col-span-full py-8 text-center text-gray-400">Cargando contenido en curso...</div>';
++
++    const res = await apiFetch('/api/vod/continue-watching');
++    const items = res?.items || [];
++
++    if (items.length === 0) {
++        grid.innerHTML = '';
++        emptyMsg?.classList.remove('hidden');
++        return;
++    }
++
++    emptyMsg?.classList.add('hidden');
++    grid.innerHTML = '';
++
++    items.forEach(item => {
++        const card = createContinueCard(item);
++        grid.appendChild(card);
++    });
++}
++
++/**
++ * Creates an interactive card for Continue Watching with a progress bar and instant resume.
++ */
++function createContinueCard(item) {
++    const card = document.createElement('div');
++    card.className = 'group relative flex flex-col bg-gray-900/90 rounded-xl overflow-hidden border border-gray-800 hover:border-blue-500/50 shadow-lg hover:shadow-blue-500/10 transition-all duration-300';
++
++    const isSeries = item.contentType === 'series';
++    const rawLogo = item.logo || `https://placehold.co/400x600/1f2937/d1d5db?text=${encodeURIComponent(item.title)}`;
++    const posterUrl = rawLogo.startsWith('http') ? withBase(`/api/image-proxy?url=${encodeURIComponent(rawLogo)}`) : rawLogo;
++    const badgeText = isSeries ? `T${item.seasonNum}:E${item.episodeNum}` : 'Película';
++    const subTitle = isSeries ? (item.episodeTitle || `Episodio ${item.episodeNum}`) : (item.title);
++    const mainTitle = isSeries ? item.title : item.title;
++    const progressPct = Math.max(2, Math.min(100, Math.round(item.percentage || 0)));
++    const remainingText = item.remainingMinutes ? `Quedan ${item.remainingMinutes} min` : `${Math.round(item.currentTime / 60)} min vistos`;
++
++    card.innerHTML = `
++        <div class="relative aspect-[2/3] w-full overflow-hidden bg-gray-950 cursor-pointer card-poster-btn">
++            <img src="${posterUrl}" alt="${mainTitle}" class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500" loading="lazy">
++            <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent opacity-80"></div>
++            
++            <!-- Type badge -->
++            <span class="absolute top-2 left-2 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider rounded-md bg-blue-600/80 text-white backdrop-blur-sm shadow">
++                ${badgeText}
++            </span>
++
++            <!-- Delete button -->
++            <button type="button" class="dismiss-btn absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-black/60 hover:bg-red-600 text-gray-300 hover:text-white backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all z-10" title="Descartar de continuar viendo">
++                ✕
++            </button>
++
++            <!-- Hover Play Button Overlay -->
++            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
++                <div class="w-14 h-14 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
++                    <svg class="w-7 h-7 translate-x-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
++                </div>
++            </div>
++
++            <!-- Bottom Progress bar directly over poster -->
++            <div class="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-800">
++                <div class="h-full bg-blue-500 transition-all duration-300" style="width: ${progressPct}%;"></div>
++            </div>
++        </div>
++
++        <div class="p-3 flex flex-col flex-grow justify-between bg-gray-900/90">
++            <div>
++                <h4 class="text-sm font-bold text-white truncate group-hover:text-blue-400 transition-colors" title="${mainTitle}">
++                    ${mainTitle}
++                </h4>
++                <p class="text-xs text-gray-400 truncate mt-0.5" title="${subTitle}">
++                    ${subTitle}
++                </p>
++            </div>
++            <div class="mt-2.5 flex items-center justify-between text-[11px] text-gray-400">
++                <span class="flex items-center gap-1 font-medium text-blue-400">
++                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
++                    ${remainingText}
++                </span>
++                <span class="text-gray-500 font-mono">${progressPct}%</span>
++            </div>
++        </div>
++    `;
++
++    // Click on poster / card to play and resume
++    const posterBtn = card.querySelector('.card-poster-btn');
++    posterBtn.addEventListener('click', (e) => {
++        if (e.target.closest('.dismiss-btn')) return;
++
++        const playTitle = isSeries ? `${item.title} - T${item.seasonNum}:E${item.episodeNum} ${item.episodeTitle || ''}` : item.title;
++        const context = {
++            contentType: item.contentType,
++            contentId: item.contentId,
++            title: item.title,
++            seriesName: item.seriesName,
++            seasonNum: item.seasonNum,
++            episodeNum: item.episodeNum,
++            episodeId: item.episodeId,
++            episodeTitle: item.episodeTitle,
++            logo: item.logo,
++            streamUrl: item.streamUrl,
++            duration: item.duration || 0
++        };
++
++        console.log(`[DASHBOARD] Resuming playback for "${playTitle}" at ${item.currentTime}s`);
++        playVOD(item.streamUrl, playTitle, item.logo, item.currentTime, context);
++    });
++
++    // Dismiss button click
++    const dismissBtn = card.querySelector('.dismiss-btn');
++    dismissBtn.addEventListener('click', async (e) => {
++        e.stopPropagation();
++        try {
++            await apiFetch(`/api/vod/progress/${item.contentId}`, { method: 'DELETE' });
++            showNotification('Eliminado de continuar viendo', false, 2000);
++            card.remove();
++            const grid = document.getElementById('dashboard-continue-grid');
++            if (grid && grid.children.length === 0) {
++                document.getElementById('dashboard-continue-empty')?.classList.remove('hidden');
++            }
++        } catch (err) {
++            console.error('[DASHBOARD] Error dismissing item:', err);
++        }
++    });
++
++    return card;
++}
++
++/**
++ * Fetches and renders the series progress summary hub.
++ */
++async function loadSeriesSummary() {
++    const grid = document.getElementById('dashboard-series-grid');
++    const emptyMsg = document.getElementById('dashboard-series-empty');
++    if (!grid) return;
++
++    grid.innerHTML = '<div class="col-span-full py-6 text-center text-gray-400">Cargando series en curso...</div>';
++
++    const res = await apiFetch('/api/vod/series-summary');
++    const seriesList = res?.series || [];
++
++    if (seriesList.length === 0) {
++        grid.innerHTML = '';
++        emptyMsg?.classList.remove('hidden');
++        return;
++    }
++
++    emptyMsg?.classList.add('hidden');
++    grid.innerHTML = '';
++
++    seriesList.forEach(s => {
++        const card = createSeriesSummaryCard(s);
++        grid.appendChild(card);
++    });
++}
++
++/**
++ * Creates a series overview card displaying overall progress and quick action to continue.
++ */
++function createSeriesSummaryCard(series) {
++    const card = document.createElement('div');
++    card.className = 'flex flex-col sm:flex-row bg-gray-900/90 rounded-xl overflow-hidden border border-gray-800 hover:border-purple-500/40 p-4 gap-4 shadow-lg transition-all';
++
++    const rawLogo = series.logo || `https://placehold.co/400x600/1f2937/d1d5db?text=${encodeURIComponent(series.title)}`;
++    const posterUrl = rawLogo.startsWith('http') ? withBase(`/api/image-proxy?url=${encodeURIComponent(rawLogo)}`) : rawLogo;
++
++    const activeEp = series.inProgressEpisode || series.lastWatchedEpisode;
++    const epBadge = activeEp ? `T${activeEp.season_num}:E${activeEp.episode_num}` : 'Episodio';
++    const epTitle = activeEp?.episode_title ? ` - ${activeEp.episode_title}` : '';
++    const isPaused = activeEp && activeEp.is_completed === 0 && activeEp.current_time > 0;
++    const btnLabel = isPaused
++        ? `▶ Continuar ${epBadge} (min ${Math.round(activeEp.current_time / 60)})`
++        : `▶ Reproducir ${epBadge}`;
++
++    card.innerHTML = `
++        <div class="w-full sm:w-28 aspect-[2/3] flex-shrink-0 rounded-lg overflow-hidden bg-gray-950">
++            <img src="${posterUrl}" alt="${series.title}" class="w-full h-full object-cover" loading="lazy">
++        </div>
++        <div class="flex flex-col justify-between flex-grow">
++            <div>
++                <h4 class="text-base font-bold text-white hover:text-purple-400 transition-colors">
++                    ${series.title}
++                </h4>
++                <div class="mt-1 flex items-center gap-2 text-xs text-gray-400">
++                    <span class="text-purple-400 font-semibold">${series.completedEpisodes} / ${series.totalEpisodes}</span>
++                    <span>episodios vistos</span>
++                    <span>•</span>
++                    <span class="text-gray-400 font-mono">${series.percentCompleted}%</span>
++                </div>
++                <!-- Overall series progress bar -->
++                <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden mt-2.5">
++                    <div class="h-full bg-purple-500 rounded-full" style="width: ${series.percentCompleted}%;"></div>
++                </div>
++
++                ${activeEp ? `
++                <div class="mt-3 p-2 rounded-lg bg-gray-800/60 border border-gray-700/50">
++                    <div class="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">Último episodio:</div>
++                    <div class="text-xs text-gray-200 font-medium truncate mt-0.5">
++                        <span class="text-purple-400 font-bold">${epBadge}</span>${epTitle}
++                    </div>
++                </div>
++                ` : ''}
++            </div>
++
++            <div class="mt-4 pt-2">
++                ${activeEp ? `
++                <button type="button" class="resume-series-btn w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow transition-all cursor-pointer">
++                    ${btnLabel}
++                </button>
++                ` : ''}
++            </div>
++        </div>
++    `;
++
++    const resumeBtn = card.querySelector('.resume-series-btn');
++    if (resumeBtn && activeEp) {
++        resumeBtn.addEventListener('click', () => {
++            const streamUrl = activeEp.stream_url;
++            const title = `${series.title} - ${epBadge}${epTitle}`;
++            const seekTime = isPaused ? activeEp.current_time : 0;
++            const context = {
++                contentType: 'series',
++                contentId: series.contentId,
++                title: series.title,
++                seriesName: series.title,
++                seasonNum: activeEp.season_num,
++                episodeNum: activeEp.episode_num,
++                episodeId: activeEp.episode_id,
++                episodeTitle: activeEp.episode_title,
++                logo: series.logo,
++                streamUrl: streamUrl,
++                duration: activeEp.duration || 0
++            };
++            playVOD(streamUrl, title, series.logo, seekTime, context);
++        });
++    }
++
++    return card;
++}
 diff --git a/public/js/modules/dvr.js b/public/js/modules/dvr.js
 index bfb2e67..6f06ec4 100644
 --- a/public/js/modules/dvr.js
@@ -318,6 +746,18 @@ index bfb2e67..6f06ec4 100644
                  openModal(UIElements.recordingPlayerModal);
              }
          } else if (e.target.closest('.delete-recording-btn')) {
+diff --git a/public/js/modules/icons.js b/public/js/modules/icons.js
+index bbb1aa0..422bb29 100644
+--- a/public/js/modules/icons.js
++++ b/public/js/modules/icons.js
+@@ -18,6 +18,7 @@ const createIcon = (path, viewBox = '0 0 20 20', type = 'fill') => {
+ 
+ // --- Navigation & General UI ---
+ export const ICONS = {
++    dashboard: createIcon('<path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />', '0 0 24 24', 'stroke'),
+     menu: createIcon('<path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />'),
+     close: createIcon('<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />'),
+     add: createIcon('<path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />'),
 diff --git a/public/js/modules/multiview.js b/public/js/modules/multiview.js
 index aed7d38..a3ef271 100644
 --- a/public/js/modules/multiview.js
@@ -371,18 +811,27 @@ index d44a456..509e2e7 100644
              // Wait a moment for the page switch to happen visually.
              await new Promise(resolve => setTimeout(resolve, 50));
 diff --git a/public/js/modules/player.js b/public/js/modules/player.js
-index c7adf77..1008477 100644
+index c7adf77..529c8e9 100644
 --- a/public/js/modules/player.js
 +++ b/public/js/modules/player.js
-@@ -6,6 +6,7 @@
+@@ -6,6 +6,8 @@
  import { appState, guideState, UIElements } from './state.js';
  // MODIFIED: Added stopStream to the import
  import { saveUserSetting, stopStream, startRedirectStream, stopRedirectStream } from './api.js';
 +import { withBase } from './basePath.js';
++import { startTracking, stopTracking } from './watchTracker.js';
  import { showNotification, openModal, closeModal } from './ui.js';
  import { castState, loadMedia, setLocalPlayerState } from './cast.js';
  import { logToPlayerConsole } from './player_direct.js';
-@@ -232,7 +233,7 @@ export const playChannel = (url, name, channelId) => {
+@@ -92,6 +94,7 @@ export async function forceRefreshStream() {
+  * This does NOT affect an active Google Cast session.
+  */
+ export const stopAndCleanupPlayer = async () => { // MODIFIED: Made function async
++    stopTracking();
+     // If we were logging a redirect stream, tell the server it has stopped.
+     if (currentRedirectHistoryId) {
+         stopRedirectStream(currentRedirectHistoryId);
+@@ -232,7 +235,7 @@ export const playChannel = (url, name, channelId) => {
          return showNotification("Stream profile not found.", true);
      }
  
@@ -391,7 +840,37 @@ index c7adf77..1008477 100644
      const channel = guideState.channels.find(c => c.id === channelId);
      const logo = channel ? channel.logo : '';
  
-@@ -400,7 +401,7 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -343,7 +346,8 @@ export const playChannel = (url, name, channelId) => {
+  * @param {string} url - The direct URL to the VOD file (e.g., .mp4, .mkv).
+  * @param {string} title - The title of the VOD to display.
+  */
+-export const playVOD = async (url, title, logo = '') => {
++export const playVOD = async (url, title, logo = '', startTime = 0, vodContext = null) => {
++    const seekOffset = parseFloat(startTime) || 0;
+     const useDirectPlay = guideState.settings.vodDirectPlayEnabled === true;
+     console.log(`[VOD_PLAYER] Attempting to play VOD: "${title}" | Direct Play: ${useDirectPlay}`);
+ 
+@@ -366,7 +370,19 @@ export const playVOD = async (url, title, logo = '') => {
+         try {
+             // Ensure volume is set
+             UIElements.videoElement.volume = parseFloat(localStorage.getItem('iptvPlayerVolume') || 0.5);
++            if (seekOffset > 0) {
++                UIElements.videoElement.currentTime = seekOffset;
++            }
+             await UIElements.videoElement.play();
++            const trackContext = vodContext || {
++                contentType: url.includes('/series/') ? 'series' : 'movie',
++                contentId: url,
++                title: title,
++                logo: logo,
++                streamUrl: url,
++                duration: 0
++            };
++            startTracking(UIElements.videoElement, trackContext, seekOffset);
+             console.log(`[VOD_PLAYER] Native playback started for: "${title}"`);
+             // Clear live stream tracking state
+             setLocalPlayerState(null, null, null);
+@@ -400,7 +416,7 @@ export const playVOD = async (url, title, logo = '') => {
      const settings = guideState.settings;
      const profileId = settings.activeStreamProfileId;
      const userAgentId = settings.activeUserAgentId;
@@ -400,7 +879,7 @@ index c7adf77..1008477 100644
  
      if (!profileId || !userAgentId || !profile) {
          const errorMsg = "Active stream profile or user agent not set/found. Cannot play VOD via profile. Please check settings.";
-@@ -412,11 +413,24 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -412,11 +428,24 @@ export const playVOD = async (url, title, logo = '') => {
  
      logToPlayerConsole(`Using Profile: ${profile.name}, User Agent ID: ${userAgentId}`);
  
@@ -422,11 +901,11 @@ index c7adf77..1008477 100644
      const streamUrlToPlay = profile.command === 'redirect'
          ? url // If redirect, still use mpegts.js but with the direct URL
 -        : `/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}&vodName=${encodeURIComponent(title)}&vodLogo=${encodeURIComponent(logo)}`;
-+        : withBase(`/stream?url=${encodeURIComponent(url)}&profileId=${profile.id}&userAgentId=${userAgentId}&vodName=${encodeURIComponent(title)}&vodLogo=${encodeURIComponent(logo)}&isVod=true`);
++        : withBase(`/stream?url=${encodeURIComponent(url)}&profileId=${profile.id}&userAgentId=${userAgentId}&vodName=${encodeURIComponent(title)}&vodLogo=${encodeURIComponent(logo)}&isVod=true${seekOffset > 0 ? `&startTime=${Math.floor(seekOffset)}` : ''}`);
  
      console.log(`[VOD_PLAYER] Final mpegts.js stream URL: ${streamUrlToPlay}`);
      logToPlayerConsole(`Final stream URL: ${streamUrlToPlay}`);
-@@ -424,7 +438,7 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -424,7 +453,7 @@ export const playVOD = async (url, title, logo = '') => {
      // Store the *original* VOD URL for potential stop requests if using /stream
      if (profile.command !== 'redirect') {
          currentLocalStreamUrl = url;
@@ -435,7 +914,7 @@ index c7adf77..1008477 100644
      }
  
      // --- Activity Logging for Redirect VODs (using mpegts.js) ---
-@@ -445,10 +459,15 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -445,10 +474,15 @@ export const playVOD = async (url, title, logo = '') => {
      if (mpegts.isSupported()) {
          const mpegtsConfig = {
              enableStashBuffer: true,
@@ -454,7 +933,7 @@ index c7adf77..1008477 100644
  
          try {
              appState.player = mpegts.createPlayer({
-@@ -460,8 +479,11 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -460,8 +494,11 @@ export const playVOD = async (url, title, logo = '') => {
              // Setup error handling
              appState.player.on(mpegts.Events.ERROR, (errorType, errorDetail) => {
                  const errorMsg = `Player Error: ${errorType} - ${errorDetail}`;
@@ -467,6 +946,22 @@ index c7adf77..1008477 100644
                  showNotification(errorMsg, true);
                  stopAndCleanupPlayer(); // Cleanup on error
              });
+@@ -487,6 +524,15 @@ export const playVOD = async (url, title, logo = '') => {
+             await appState.player.play();
+             console.log(`[VOD_PLAYER] Playback command issued for: "${title}"`);
+             setLocalPlayerState(streamUrlToPlay, title, null); // Update cast state
++            const mpegtsTrackContext = vodContext || {
++                contentType: url.includes('/series/') ? 'series' : 'movie',
++                contentId: url,
++                title: title,
++                logo: logo,
++                streamUrl: url,
++                duration: 0
++            };
++            startTracking(UIElements.videoElement, mpegtsTrackContext, seekOffset);
+ 
+             // Start stream info interval if needed
+             if (streamInfoInterval) clearInterval(streamInfoInterval);
 diff --git a/public/js/modules/player_direct.js b/public/js/modules/player_direct.js
 index 68e3553..697528a 100644
 --- a/public/js/modules/player_direct.js
@@ -528,10 +1023,15 @@ index 0bd3e54..afe5da0 100644
  
      UIElements.importSettingsBtn.addEventListener('click', () => {
 diff --git a/public/js/modules/ui.js b/public/js/modules/ui.js
-index 3d59243..a844305 100644
+index 3d59243..725282d 100644
 --- a/public/js/modules/ui.js
 +++ b/public/js/modules/ui.js
-@@ -16,6 +16,7 @@ import { finalizeGuideLoad, handleGuideLoad } from './guide.js';
+@@ -1,3 +1,4 @@
++import { initDashboardPage } from './dashboard.js';
+ /**
+  * ui.js
+  * * Contains functions for managing the user interface.
+@@ -16,6 +17,7 @@ import { finalizeGuideLoad, handleGuideLoad } from './guide.js';
  import { fetchConfig } from './api.js';
  import { initActivityPage } from './admin.js';
  import { initVodPage } from './vod.js';
@@ -539,7 +1039,7 @@ index 3d59243..a844305 100644
  
  
  let confirmCallback = null;
-@@ -362,7 +363,7 @@ export const tempBlockConfigReload = () => {
+@@ -362,7 +364,7 @@ export const tempBlockConfigReload = () => {
  export const handleRouteChange = () => {
      const wasMultiView = currentPage.startsWith('/multiview');
      const wasPlayer = currentPage.startsWith('/player');
@@ -548,7 +1048,7 @@ index 3d59243..a844305 100644
  
      if (wasMultiView && !path.startsWith('/multiview')) {
          if (isMultiViewActive()) {
-@@ -374,7 +375,7 @@ export const handleRouteChange = () => {
+@@ -374,7 +376,7 @@ export const handleRouteChange = () => {
                      proceedWithRouteChange(path);
                  }
              );
@@ -557,7 +1057,7 @@ index 3d59243..a844305 100644
              return;
          } else {
              cleanupMultiView();
-@@ -391,7 +392,7 @@ export const handleRouteChange = () => {
+@@ -391,7 +393,7 @@ export const handleRouteChange = () => {
                      proceedWithRouteChange(path);
                  }
              );
@@ -566,7 +1066,54 @@ index 3d59243..a844305 100644
              return;
          } else {
              cleanupDirectPlayer();
-@@ -549,8 +550,9 @@ async function proceedWithRouteChange(path) {
+@@ -412,6 +414,7 @@ async function proceedWithRouteChange(path) {
+     const isPlayer = path.startsWith('/player');
+     const isDvr = path.startsWith('/dvr');
+     const isVod = path.startsWith('/vod');
++    const isDashboard = path.startsWith('/dashboard');
+     const isActivity = path.startsWith('/activity');
+     const isNotifications = path.startsWith('/notifications');
+     const isSettings = path.startsWith('/settings');
+@@ -437,6 +440,16 @@ async function proceedWithRouteChange(path) {
+     // VOD tab is visible to all
+     if (UIElements.tabVod) UIElements.tabVod.classList.toggle('active', isVod);
+     if (UIElements.mobileNavVod) UIElements.mobileNavVod.classList.toggle('active', isVod);
++    // Dashboard active state
++    if (UIElements.userDisplay) {
++        UIElements.userDisplay.classList.toggle('ring-2', isDashboard);
++        UIElements.userDisplay.classList.toggle('ring-blue-500', isDashboard);
++        UIElements.userDisplay.classList.toggle('bg-blue-900/50', isDashboard);
++    }
++    if (UIElements.mobileNavDashboard) {
++        UIElements.mobileNavDashboard.classList.toggle('active', isDashboard);
++    }
++
+     // --- END ADD ---
+ 
+     // Activity tab is for admins only
+@@ -479,6 +492,12 @@ async function proceedWithRouteChange(path) {
+     // Show VOD page to everyone
+     UIElements.pageVod.classList.toggle('hidden', !isVod);
+     UIElements.pageVod.classList.toggle('flex', isVod);
++    // Show Dashboard page
++    if (UIElements.pageDashboard) {
++        UIElements.pageDashboard.classList.toggle('hidden', !isDashboard);
++        UIElements.pageDashboard.classList.toggle('flex', isDashboard);
++    }
++
+     // --- END ADD ---
+ 
+     UIElements.pageActivity.classList.toggle('hidden', !isActivity || !isAdmin);
+@@ -536,6 +555,8 @@ async function proceedWithRouteChange(path) {
+             await initDvrPage();
+         } else if (isVod) {
+             await initVodPage();
++        } else if (isDashboard) {
++            await initDashboardPage();
+         } else if (isActivity && isAdmin) {
+             await initActivityPage();
+         }
+@@ -549,8 +570,9 @@ async function proceedWithRouteChange(path) {
   * @param {string} path - The new path to navigate to.
   */
  export const navigate = (path) => {
@@ -578,8 +1125,16 @@ index 3d59243..a844305 100644
      }
      handleRouteChange();
  };
+@@ -566,6 +588,7 @@ export const switchTab = (activeTab) => {
+     else if (activeTab === 'player') newPath = '/player';
+     else if (activeTab === 'dvr') newPath = '/dvr';
+     else if (activeTab === 'vod') newPath = '/vod';
++    else if (activeTab === 'dashboard') newPath = '/dashboard';
+     else if (activeTab === 'activity') newPath = '/activity';
+     else if (activeTab === 'notifications') newPath = '/notifications';
+     else newPath = '/settings';
 diff --git a/public/js/modules/vod.js b/public/js/modules/vod.js
-index 8262e9a..fb05e8a 100644
+index 8262e9a..f19e3f3 100644
 --- a/public/js/modules/vod.js
 +++ b/public/js/modules/vod.js
 @@ -9,6 +9,7 @@ import { openModal, closeModal, showNotification } from './ui.js';
@@ -608,11 +1163,266 @@ index 8262e9a..fb05e8a 100644
      UIElements.vodDetailsPoster.src = proxiedPoster;
      UIElements.vodDetailsBackdropImg.src = item.logo ? proxiedPoster : '';
  
+@@ -217,10 +218,18 @@ async function openVodDetails(item) { // Make the function async
+         UIElements.vodDetailsMovieActions.classList.remove('hidden');
+         const movieUrl = item.url;
+         const movieName = item.name;
+-        const movieLogo = item.logo; // Get the logo
++        const movieLogo = item.logo;
++        const movieContext = {
++            contentType: 'movie',
++            contentId: item.id,
++            title: item.name,
++            logo: item.logo,
++            streamUrl: item.url,
++            duration: 0
++        };
+         UIElements.vodPlayMovieBtn.onclick = null;
+         UIElements.vodPlayMovieBtn.onclick = () => {
+-            playVOD(movieUrl, movieName, movieLogo); // Pass the logo
++            playVOD(movieUrl, movieName, movieLogo, 0, movieContext);
+             closeModal(UIElements.vodDetailsModal);
+         };
+ 
+@@ -233,8 +242,10 @@ async function openVodDetails(item) { // Make the function async
+         const fullSeriesData = await fetchSeriesDetails(item.id);
+         console.log(`[VOD] Fetched full series data for ID ${item.id}:`, fullSeriesData);
+ 
+-        // Store the logo on the episode list element to be accessed by the click listener
++        // Store series metadata on the episode list element to be accessed by the click listener
+         UIElements.vodEpisodeList.dataset.seriesLogo = fullSeriesData.logo || item.logo || '';
++        UIElements.vodEpisodeList.dataset.seriesId = fullSeriesData.id || item.id || '';
++        UIElements.vodEpisodeList.dataset.seriesName = fullSeriesData.name || item.name || '';
+ 
+         // --- FIX: Robust check for invalid or empty series data ---
+         if (!fullSeriesData || !fullSeriesData.seasons || Object.keys(fullSeriesData.seasons).length === 0) {
+@@ -299,7 +310,7 @@ function renderEpisodeList(series, seasonNum) {
+         const originalTitle = ep.name || `Episode ${index + 1}`;
+ 
+         return `
+-            <div class="episode-item" data-url="${ep.url}" data-title="${originalTitle.replace(/"/g, '&quot;')}">
++            <div class="episode-item" data-url="${ep.url}" data-title="${originalTitle.replace(/"/g, '&quot;')}" data-season-num="${seasonNum}" data-episode-num="${ep.episode || index + 1}" data-id="${ep.id || ''}" data-episode-title="${epName.replace(/"/g, '&quot;')}">
+                 <div class="episode-item-epnum">${index + 1}</div>
+                 <div class="episode-item-title">${epName}</div>
+                 <div class="episode-item-duration">N/A</div>
+@@ -400,8 +411,21 @@ function setupVodEventListeners() {
+         if (episodeItem) {
+             const url = episodeItem.dataset.url;
+             const title = episodeItem.dataset.title;
+-            const seriesLogo = UIElements.vodEpisodeList.dataset.seriesLogo || ''; // Get logo from parent
+-            playVOD(url, title, seriesLogo); // Pass logo
++            const seriesLogo = UIElements.vodEpisodeList.dataset.seriesLogo || '';
++            const epContext = {
++                contentType: 'series',
++                contentId: UIElements.vodEpisodeList.dataset.seriesId || '',
++                title: UIElements.vodEpisodeList.dataset.seriesName || title,
++                seriesName: UIElements.vodEpisodeList.dataset.seriesName || '',
++                seasonNum: parseInt(episodeItem.dataset.seasonNum, 10) || 1,
++                episodeNum: parseInt(episodeItem.dataset.episodeNum, 10) || 1,
++                episodeId: episodeItem.dataset.id || '',
++                episodeTitle: episodeItem.dataset.episodeTitle || title,
++                logo: seriesLogo,
++                streamUrl: url,
++                duration: 0
++            };
++            playVOD(url, title, seriesLogo, 0, epContext);
+             closeModal(UIElements.vodDetailsModal);
+         }
+     });
+diff --git a/public/js/modules/watchTracker.js b/public/js/modules/watchTracker.js
+new file mode 100644
+index 0000000..b43bc31
+--- /dev/null
++++ b/public/js/modules/watchTracker.js
+@@ -0,0 +1,148 @@
++/**
++ * watchTracker.js
++ * Tracks video playback progress and syncs it with the backend API.
++ * Handles throttled sync every 10s, pause/end events, and beacon persistence on window unload.
++ */
++
++import { apiFetch } from './api.js';
++import { withBase } from './basePath.js';
++
++let activeContext = null;
++let initialSeekOffset = 0;
++let syncInterval = null;
++let lastSyncedTime = -1;
++let videoElementRef = null;
++
++const SYNC_INTERVAL_MS = 10000; // Sync every 10 seconds
++
++function getCurrentPlaybackPosition() {
++    if (!videoElementRef) return 0;
++    // Real position = the seek offset (if started with -ss) + the time elapsed in the current video session
++    return Math.max(0, initialSeekOffset + (videoElementRef.currentTime || 0));
++}
++
++function getMediaDuration() {
++    if (activeContext && activeContext.duration > 0) {
++        return activeContext.duration;
++    }
++    if (videoElementRef && Number.isFinite(videoElementRef.duration) && videoElementRef.duration > 0) {
++        return videoElementRef.duration;
++    }
++    return 0;
++}
++
++export async function sendProgressUpdate(force = false) {
++    if (!activeContext || !videoElementRef) return;
++
++    const currentPos = getCurrentPlaybackPosition();
++    const duration = getMediaDuration();
++
++    // If change is less than 3 seconds and not forced, skip
++    if (!force && Math.abs(currentPos - lastSyncedTime) < 3) return;
++
++    lastSyncedTime = currentPos;
++
++    const payload = {
++        contentType: activeContext.contentType || 'movie',
++        contentId: activeContext.contentId,
++        title: activeContext.title,
++        seriesName: activeContext.seriesName,
++        seasonNum: activeContext.seasonNum,
++        episodeNum: activeContext.episodeNum,
++        episodeId: activeContext.episodeId,
++        episodeTitle: activeContext.episodeTitle,
++        logo: activeContext.logo,
++        streamUrl: activeContext.streamUrl,
++        currentTime: currentPos,
++        duration: duration
++    };
++
++    console.log(`[WATCH_TRACKER] Syncing progress: "${payload.title}" at ${Math.round(currentPos)}s / ${Math.round(duration)}s`);
++
++    try {
++        await apiFetch('/api/vod/progress', {
++            method: 'POST',
++            headers: { 'Content-Type': 'application/json' },
++            body: JSON.stringify(payload)
++        });
++    } catch (e) {
++        console.warn('[WATCH_TRACKER] Progress sync failed:', e);
++    }
++}
++
++// Emergency beacon for beforeunload to ensure no loss of progress
++function sendBeaconUpdate() {
++    if (!activeContext || !videoElementRef) return;
++    const currentPos = getCurrentPlaybackPosition();
++    const duration = getMediaDuration();
++    if (currentPos < 15) return;
++
++    const payload = {
++        contentType: activeContext.contentType || 'movie',
++        contentId: activeContext.contentId,
++        title: activeContext.title,
++        seriesName: activeContext.seriesName,
++        seasonNum: activeContext.seasonNum,
++        episodeNum: activeContext.episodeNum,
++        episodeId: activeContext.episodeId,
++        episodeTitle: activeContext.episodeTitle,
++        logo: activeContext.logo,
++        streamUrl: activeContext.streamUrl,
++        currentTime: currentPos,
++        duration: duration
++    };
++
++    if (navigator.sendBeacon) {
++        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
++        navigator.sendBeacon(withBase('/api/vod/progress'), blob);
++    }
++}
++
++const onVideoPause = () => sendProgressUpdate(true);
++const onVideoEnded = () => sendProgressUpdate(true);
++const onBeforeUnload = () => sendBeaconUpdate();
++
++export function startTracking(videoElement, context, seekOffset = 0) {
++    stopTracking(); // Ensure any prior tracking is cleaned up
++
++    videoElementRef = videoElement;
++    activeContext = context;
++    initialSeekOffset = parseFloat(seekOffset) || 0;
++    lastSyncedTime = initialSeekOffset;
++
++    console.log(`[WATCH_TRACKER] Started tracking "${context?.title}" from offset ${initialSeekOffset}s`);
++
++    if (videoElementRef) {
++        videoElementRef.addEventListener('pause', onVideoPause);
++        videoElementRef.addEventListener('ended', onVideoEnded);
++        window.addEventListener('beforeunload', onBeforeUnload);
++    }
++
++    // Periodic sync interval
++    syncInterval = setInterval(() => {
++        if (videoElementRef && !videoElementRef.paused) {
++            sendProgressUpdate();
++        }
++    }, SYNC_INTERVAL_MS);
++}
++
++export function stopTracking() {
++    if (activeContext && videoElementRef) {
++        sendProgressUpdate(true); // Final sync
++    }
++
++    if (syncInterval) {
++        clearInterval(syncInterval);
++        syncInterval = null;
++    }
++
++    if (videoElementRef) {
++        videoElementRef.removeEventListener('pause', onVideoPause);
++        videoElementRef.removeEventListener('ended', onVideoEnded);
++        window.removeEventListener('beforeunload', onBeforeUnload);
++    }
++
++    videoElementRef = null;
++    activeContext = null;
++    initialSeekOffset = 0;
++}
 diff --git a/server.js b/server.js
-index 114a601..4d19b80 100644
+index 114a601..5751243 100644
 --- a/server.js
 +++ b/server.js
-@@ -273,6 +273,62 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
+@@ -227,6 +227,34 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
+                     db.run("ALTER TABLE provider_episode_relations ADD COLUMN container_extension TEXT", () => { });
+                 }
+             });
++            // --- NEW: VOD Watch Progress Table (Dashboard & Resume Support) ---
++            db.run(`CREATE TABLE IF NOT EXISTS vod_watch_progress (
++                id INTEGER PRIMARY KEY AUTOINCREMENT,
++                user_id INTEGER NOT NULL,
++                content_type TEXT NOT NULL,
++                content_id TEXT NOT NULL,
++                title TEXT NOT NULL,
++                series_name TEXT,
++                season_num INTEGER,
++                episode_num INTEGER,
++                episode_id TEXT,
++                episode_title TEXT,
++                logo TEXT,
++                stream_url TEXT NOT NULL,
++                current_time REAL NOT NULL DEFAULT 0,
++                duration REAL DEFAULT 0,
++                percentage REAL DEFAULT 0,
++                is_completed INTEGER DEFAULT 0,
++                last_watched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
++                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
++                UNIQUE (user_id, content_id, episode_id)
++            )`, (err) => {
++                if (err) {
++                    console.error("[DB] Error creating 'vod_watch_progress' table:", err.message);
++                } else {
++                    db.run(`CREATE INDEX IF NOT EXISTS idx_vod_progress_user_recent ON vod_watch_progress(user_id, is_completed, last_watched_at DESC)`);
++                }
++            });
+             // --- END NEW VOD TABLES ---
+ 
+             //-- ENHANCEMENT: Modify stream history table to include more data for the admin panel.
+@@ -273,6 +301,62 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
      }
  });
  
@@ -675,7 +1485,7 @@ index 114a601..4d19b80 100644
  // --- Middleware ---
  // 1. Smart Caching for API: Allow cache presence but FORCE revalidation every time.
  // 'no-cache' = "Check with server before using cached copy".
-@@ -284,6 +340,7 @@ app.use('/api', (req, res, next) => {
+@@ -284,6 +368,7 @@ app.use('/api', (req, res, next) => {
  // 2. Smart Caching for Static Files:
  // Allow browser to cache index.html/js, but REQUIRE it to check if they changed (304 Not Modified)
  app.use(express.static(PUBLIC_DIR, {
@@ -683,7 +1493,7 @@ index 114a601..4d19b80 100644
      setHeaders: (res, path) => {
          if (path.endsWith('index.html') || path.endsWith('.js')) {
              res.set('Cache-Control', 'public, no-cache, must-revalidate');
-@@ -293,6 +350,9 @@ app.use(express.static(PUBLIC_DIR, {
+@@ -293,6 +378,9 @@ app.use(express.static(PUBLIC_DIR, {
  app.use(bodyParser.json());
  app.use(bodyParser.urlencoded({ extended: true }));
  
@@ -693,7 +1503,7 @@ index 114a601..4d19b80 100644
  const updateAndScheduleSourceRefreshes = () => {
      console.log('[SCHEDULER] Updating and scheduling all source refreshes...');
      const settings = getSettings();
-@@ -374,13 +434,15 @@ if (sessionSecret.includes('replace_this')) {
+@@ -374,13 +462,15 @@ if (sessionSecret.includes('replace_this')) {
      console.warn('[SECURITY] Using a weak or default SESSION_SECRET. Please replace it.');
  }
  
@@ -710,7 +1520,218 @@ index 114a601..4d19b80 100644
      })
  );
  
-@@ -3419,7 +3481,27 @@ app.get('/stream', allowLocalOrAuth, async (req, res) => {
+@@ -2531,6 +2621,192 @@ app.get('/api/vod/categories', requireAuth, async (req, res) => {
+     }
+ });
+ 
++// --- NEW: VOD Watch Progress & Dashboard Endpoints ---
++app.post('/api/vod/progress', requireAuth, async (req, res) => {
++    try {
++        const {
++            contentType, contentId, title, seriesName,
++            seasonNum, episodeNum, episodeId, episodeTitle,
++            logo, streamUrl, currentTime, duration
++        } = req.body;
++        const userId = req.session.userId;
++
++        if (!contentId || currentTime === undefined) {
++            return res.status(400).json({ error: 'Missing contentId or currentTime.' });
++        }
++
++        const curTime = parseFloat(currentTime) || 0;
++        // Skip saving if watched less than 15 seconds
++        if (curTime < 15) {
++            return res.json({ success: true, ignored: true });
++        }
++
++        const dur = parseFloat(duration) || 0;
++        const pct = dur > 0 ? Math.min(100, (curTime / dur) * 100) : 0;
++        const isCompleted = pct >= 92 ? 1 : 0;
++        const epId = episodeId ? String(episodeId) : '';
++
++        const query = `
++            INSERT INTO vod_watch_progress (
++                user_id, content_type, content_id, title, series_name,
++                season_num, episode_num, episode_id, episode_title,
++                logo, stream_url, current_time, duration, percentage,
++                is_completed, last_watched_at
++            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
++            ON CONFLICT(user_id, content_id, episode_id) DO UPDATE SET
++                title = excluded.title,
++                series_name = excluded.series_name,
++                season_num = excluded.season_num,
++                episode_num = excluded.episode_num,
++                episode_title = excluded.episode_title,
++                logo = excluded.logo,
++                stream_url = excluded.stream_url,
++                current_time = excluded.current_time,
++                duration = CASE WHEN excluded.duration > 0 THEN excluded.duration ELSE vod_watch_progress.duration END,
++                percentage = excluded.percentage,
++                is_completed = excluded.is_completed,
++                last_watched_at = CURRENT_TIMESTAMP;
++        `;
++
++        await dbRun(db, query, [
++            userId,
++            contentType || 'movie',
++            String(contentId),
++            title || 'Untitled',
++            seriesName || null,
++            seasonNum ? parseInt(seasonNum, 10) : null,
++            episodeNum ? parseInt(episodeNum, 10) : null,
++            epId,
++            episodeTitle || null,
++            logo || null,
++            streamUrl || '',
++            curTime,
++            dur,
++            pct,
++            isCompleted
++        ]);
++
++        res.json({ success: true, isCompleted, currentTime: curTime, percentage: pct });
++    } catch (error) {
++        console.error('[API_VOD] Error saving watch progress:', error);
++        res.status(500).json({ error: 'Failed to save watch progress.' });
++    }
++});
++
++app.get('/api/vod/continue-watching', requireAuth, async (req, res) => {
++    try {
++        const userId = req.session.userId;
++        const query = `
++            SELECT * FROM vod_watch_progress
++            WHERE user_id = ? AND is_completed = 0
++            ORDER BY last_watched_at DESC
++            LIMIT 24
++        `;
++        const rows = await dbAll(db, query, [userId]);
++
++        const seenSeries = new Set();
++        const continueItems = [];
++
++        for (const row of rows) {
++            if (row.content_type === 'series') {
++                if (seenSeries.has(row.content_id)) continue;
++                seenSeries.add(row.content_id);
++            }
++            const remainingSeconds = Math.max(0, (row.duration || 0) - row.current_time);
++            const remainingMinutes = Math.round(remainingSeconds / 60);
++
++            continueItems.push({
++                id: row.id,
++                contentType: row.content_type,
++                contentId: row.content_id,
++                title: row.title,
++                seriesName: row.series_name,
++                seasonNum: row.season_num,
++                episodeNum: row.episode_num,
++                episodeId: row.episode_id,
++                episodeTitle: row.episode_title,
++                logo: row.logo,
++                streamUrl: row.stream_url,
++                currentTime: row.current_time,
++                duration: row.duration,
++                percentage: row.percentage,
++                remainingMinutes: remainingMinutes > 0 ? remainingMinutes : null,
++                lastWatchedAt: row.last_watched_at
++            });
++        }
++
++        res.json({ success: true, items: continueItems });
++    } catch (error) {
++        console.error('[API_VOD] Error fetching continue watching items:', error);
++        res.status(500).json({ error: 'Failed to fetch continue watching items.' });
++    }
++});
++
++app.get('/api/vod/series-summary', requireAuth, async (req, res) => {
++    try {
++        const userId = req.session.userId;
++        const startedSeries = await dbAll(db, `
++            SELECT DISTINCT content_id, series_name, title, logo, MAX(last_watched_at) as last_activity
++            FROM vod_watch_progress
++            WHERE user_id = ? AND content_type = 'series'
++            GROUP BY content_id
++            ORDER BY last_activity DESC
++            LIMIT 20
++        `, [userId]);
++
++        const summary = [];
++
++        for (const s of startedSeries) {
++            const userEpisodes = await dbAll(db, `
++                SELECT episode_id, season_num, episode_num, episode_title, stream_url, current_time, duration, percentage, is_completed, last_watched_at
++                FROM vod_watch_progress
++                WHERE user_id = ? AND content_id = ?
++                ORDER BY season_num ASC, episode_num ASC
++            `, [userId, s.content_id]);
++
++            const completedCount = userEpisodes.filter(e => e.is_completed === 1).length;
++            const inProgressEp = userEpisodes.find(e => e.is_completed === 0);
++            const lastWatchedEp = userEpisodes[userEpisodes.length - 1];
++
++            const seriesInfo = await dbGet(db, `SELECT id FROM series WHERE provider_unique_id = ?`, [s.content_id]);
++            let totalEpisodes = userEpisodes.length;
++            if (seriesInfo) {
++                const totalCountRow = await dbGet(db, `SELECT COUNT(*) as count FROM episodes WHERE series_id = ?`, [seriesInfo.id]);
++                if (totalCountRow && totalCountRow.count > 0) totalEpisodes = totalCountRow.count;
++            }
++
++            summary.push({
++                contentId: s.content_id,
++                title: s.series_name || s.title,
++                logo: s.logo,
++                totalEpisodes,
++                completedEpisodes: completedCount,
++                percentCompleted: totalEpisodes > 0 ? Math.round((completedCount / totalEpisodes) * 100) : 0,
++                inProgressEpisode: inProgressEp || null,
++                lastWatchedEpisode: lastWatchedEp || null,
++                lastActivity: s.last_activity
++            });
++        }
++
++        res.json({ success: true, series: summary });
++    } catch (error) {
++        console.error('[API_VOD] Error fetching series summary:', error);
++        res.status(500).json({ error: 'Failed to fetch series summary.' });
++    }
++});
++
++app.delete('/api/vod/progress/:contentId', requireAuth, async (req, res) => {
++    try {
++        const userId = req.session.userId;
++        const contentId = req.params.contentId;
++        await dbRun(db, `DELETE FROM vod_watch_progress WHERE user_id = ? AND content_id = ?`, [userId, contentId]);
++        res.json({ success: true, message: 'Removed from watch progress.' });
++    } catch (error) {
++        console.error('[API_VOD] Error deleting watch progress:', error);
++        res.status(500).json({ error: 'Failed to delete watch progress.' });
++    }
++});
++
+ const upload = multer({
+     storage: multer.diskStorage({
+         destination: (req, file, cb) => {
+@@ -3335,13 +3611,14 @@ function allowLocalOrAuth(req, res, next) {
+ 
+ // MODIFIED: Stream endpoint now allows local network access for Chromecast
+ app.get('/stream', allowLocalOrAuth, async (req, res) => {
+-    const { url: streamUrl, profileId, userAgentId, vodName, vodLogo } = req.query;
++    const { url: streamUrl, profileId, userAgentId, vodName, vodLogo, startTime: reqStartTime } = req.query;
+     const userId = req.session.userId;
+     const username = req.session.username;
+     const clientIp = req.clientIp;
+ 
+-    // Include profileId in stream key so Cast (MP4) and browser (MPEG-TS) don't share the same process
+-    const streamKey = `${userId}::${streamUrl}::${profileId}`;
++    const seekOffsetSeconds = parseFloat(reqStartTime) || 0;
++    // Include profileId and seek offset in stream key so seeking doesn't share an old stream process
++    const streamKey = `${userId}::${streamUrl}::${profileId}::${Math.floor(seekOffsetSeconds)}`;
+ 
+     const activeStreamInfo = activeStreamProcesses.get(streamKey);
+ 
+@@ -3419,7 +3696,33 @@ app.get('/stream', allowLocalOrAuth, async (req, res) => {
          .replace(/{streamUrl}/g, streamUrl)
          .replace(/{userAgent}|{clientUserAgent}/g, userAgent.value);
  
@@ -723,12 +1744,18 @@ index 114a601..4d19b80 100644
 +        console.log(`[STREAM] Optimizing FFmpeg parameters for VOD stream playback.`);
 +        const iIndex = args.indexOf('-i');
 +        if (iIndex !== -1) {
-+            if (!args.includes('-reconnect')) {
-+                args.splice(iIndex, 0, '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5');
++            // Fast seek if startTime offset is requested
++            if (seekOffsetSeconds > 0) {
++                console.log(`[STREAM] Fast-seeking VOD stream to offset: ${seekOffsetSeconds} seconds.`);
++                args.splice(iIndex, 0, '-ss', String(seekOffsetSeconds));
 +            }
 +            const updatedIIndex = args.indexOf('-i');
++            if (!args.includes('-reconnect')) {
++                args.splice(updatedIIndex, 0, '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5');
++            }
++            const secondUpdatedIIndex = args.indexOf('-i');
 +            if (!args.includes('-re')) {
-+                args.splice(updatedIIndex, 0, '-re');
++                args.splice(secondUpdatedIIndex, 0, '-re');
 +            }
 +        }
 +        const fIndex = args.indexOf('-f');
@@ -739,7 +1766,7 @@ index 114a601..4d19b80 100644
  
      console.log(`[STREAM] FFmpeg command args: ffmpeg ${args.join(' ')}`);
      const ffmpeg = spawn('ffmpeg', args);
-@@ -4212,7 +4294,27 @@ async function startRecording(job) {
+@@ -4212,7 +4515,33 @@ async function startRecording(job) {
          .replace(/{userAgent}/g, userAgent.value)
          .replace(/{filePath}/g, fullFilePath);
  
@@ -752,12 +1779,18 @@ index 114a601..4d19b80 100644
 +        console.log(`[STREAM] Optimizing FFmpeg parameters for VOD stream playback.`);
 +        const iIndex = args.indexOf('-i');
 +        if (iIndex !== -1) {
-+            if (!args.includes('-reconnect')) {
-+                args.splice(iIndex, 0, '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5');
++            // Fast seek if startTime offset is requested
++            if (seekOffsetSeconds > 0) {
++                console.log(`[STREAM] Fast-seeking VOD stream to offset: ${seekOffsetSeconds} seconds.`);
++                args.splice(iIndex, 0, '-ss', String(seekOffsetSeconds));
 +            }
 +            const updatedIIndex = args.indexOf('-i');
++            if (!args.includes('-reconnect')) {
++                args.splice(updatedIIndex, 0, '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5');
++            }
++            const secondUpdatedIIndex = args.indexOf('-i');
 +            if (!args.includes('-re')) {
-+                args.splice(updatedIIndex, 0, '-re');
++                args.splice(secondUpdatedIIndex, 0, '-re');
 +            }
 +        }
 +        const fIndex = args.indexOf('-f');
@@ -768,7 +1801,7 @@ index 114a601..4d19b80 100644
  
      console.log(`[DVR] Spawning ffmpeg for job ${job.id} with command: ffmpeg ${args.join(' ')}`);
      const ffmpeg = spawn('ffmpeg', args);
-@@ -5066,7 +5168,7 @@ app.get('*', (req, res) => {
+@@ -5066,7 +5395,7 @@ app.get('*', (req, res) => {
      if (fs.existsSync(filePath) && fs.lstatSync(filePath).isFile()) {
          return res.sendFile(filePath);
      }
