@@ -1,59 +1,362 @@
+diff --git a/public/index.html b/public/index.html
+index ef6ebf9..a61e05e 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -4,6 +4,7 @@
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
++    <meta name="base-path" content="">
+     <title>VINI PLAY</title>
+     <link rel="icon" type="image/png" href="/viniplay.png">
+     <script src="https://cdn.tailwindcss.com"></script>
 diff --git a/public/js/main.js b/public/js/main.js
-index 9fdbf93..02341b0 100644
+index 9fdbf93..2125c5a 100644
 --- a/public/js/main.js
 +++ b/public/js/main.js
+@@ -64,7 +64,7 @@ function renderIcons() {
+  */
+ function initializeSse() {
+     console.log('[SSE] Initializing Server-Sent Events connection...');
+-    const eventSource = new EventSource('/api/events');
++    const eventSource = new EventSource(withBase('/api/events'));
+ 
+     eventSource.onopen = () => {
+         console.log('[SSE] Connection to server opened.');
 @@ -113,7 +113,7 @@ function initializeSse() {
      eventSource.addEventListener('activity-update', (event) => {
          const data = JSON.parse(event.data);
          // This will only do something if the admin page is currently active.
 -        if (window.location.pathname.startsWith('/activity')) {
-+        if (window.location.pathname.includes('/activity')) {
++        if (stripBase(window.location.pathname).startsWith('/activity')) {
              handleActivityUpdate(data.live);
          }
      });
-@@ -462,11 +462,11 @@ function setupCoreEventListeners() {
+@@ -124,7 +124,7 @@ function initializeSse() {
+         const { channel } = JSON.parse(event.data);
+ 
+         // Check which player is active and change its channel
+-        const currentPage = window.location.pathname;
++        const currentPage = stripBase(window.location.pathname);
+         if (currentPage.startsWith('/tvguide') || currentPage === '/') {
+             // Stop the main player if it's open, then play the new channel.
+             stopAndCleanupPlayer().then(() => {
+@@ -461,12 +461,12 @@ function setupCoreEventListeners() {
+     document.addEventListener('visibilitychange', () => {
          if (document.visibilityState === 'visible') {
              console.log('[MAIN] Tab is visible again, refreshing data for current page.');
-             const currentPage = window.location.pathname;
--            if (currentPage.startsWith('/dvr')) {
-+            if (currentPage.includes('/dvr')) {
+-            const currentPage = window.location.pathname;
++            const currentPage = stripBase(window.location.pathname);
+             if (currentPage.startsWith('/dvr')) {
                  initDvrPage();
--            } else if (currentPage.startsWith('/notifications')) {
-+            } else if (currentPage.includes('/notifications')) {
+             } else if (currentPage.startsWith('/notifications')) {
                  loadAndScheduleNotifications();
 -            } else if (currentPage.startsWith('/activity')) { // NEW
-+            } else if (currentPage.includes('/activity')) { // NEW
++            } else if (currentPage.startsWith('/activity')) {
                  initActivityPage();
              }
          }
+@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
+     // Register Service Worker
+     if ('serviceWorker' in navigator && 'PushManager' in window) {
+         console.log('[APP_START] Service Worker and Push API are supported by browser.');
+-        navigator.serviceWorker.register('/sw.js')
++        navigator.serviceWorker.register(withBase('/sw.js'), { scope: withBase('/') })
+             .then(swReg => {
+                 console.log('[APP_START] Service Worker registered successfully:', swReg);
+                 appState.swRegistration = swReg;
+diff --git a/public/js/modules/api.js b/public/js/modules/api.js
+index 8a4302b..6b36350 100644
+--- a/public/js/modules/api.js
++++ b/public/js/modules/api.js
+@@ -6,6 +6,7 @@
+ 
+ import { showLoginScreen } from './auth.js';
+ import { showNotification } from './ui.js';
++import { withBase } from './basePath.js';
+ 
+ /**
+  * A wrapper for the fetch API to handle common tasks like error handling and auth failures.
+@@ -14,10 +15,11 @@ import { showNotification } from './ui.js';
+  * @returns {Promise<Response|null>} - The fetch Response object or null on failure.
+  */
+ export async function apiFetch(url, options = {}) {
+-    console.log(`[API_FETCH] Requesting: ${options.method || 'GET'} ${url}`);
++    const targetUrl = withBase(url);
++    console.log(`[API_FETCH] Requesting: ${options.method || 'GET'} ${targetUrl}`);
+     try {
+-        const response = await fetch(url, options);
+-        console.log(`[API_FETCH] Response received for ${url}: Status ${response.status} ${response.statusText}`);
++        const response = await fetch(targetUrl, options);
++        console.log(`[API_FETCH] Response received for ${targetUrl}: Status ${response.status} ${response.statusText}`);
+ 
+         // If the session expired, the server will return a 401 Unauthorized
+         if (response.status === 401) {
+@@ -32,10 +34,10 @@ export async function apiFetch(url, options = {}) {
+             try {
+                 errorData = await response.json(); // Try to parse error message if available
+             } catch (e) {
+-                console.warn(`[API_FETCH] Could not parse error response as JSON for ${url}:`, e);
++                console.warn(`[API_FETCH] Could not parse error response as JSON for ${targetUrl}:`, e);
+                 errorData.error = response.statusText || 'An unknown error occurred.';
+             }
+-            console.error(`[API_FETCH] API call failed for ${url}: Status ${response.status}, Error: ${errorData.error || 'No specific error message.'}`);
++            console.error(`[API_FETCH] API call failed for ${targetUrl}: Status ${response.status}, Error: ${errorData.error || 'No specific error message.'}`);
+             showNotification(errorData.error || `API Error: ${response.status} ${response.statusText}`, true);
+             return null;
+         }
+@@ -43,7 +45,7 @@ export async function apiFetch(url, options = {}) {
+         console.log(`[API_FETCH] API call to ${url} successful.`);
+         return response;
+     } catch (error) {
+-        console.error(`[API_FETCH] Network or unexpected error during fetch for ${url}:`, error);
++        console.error(`[API_FETCH] Network or unexpected error during fetch for ${targetUrl}:`, error);
+         showNotification("Could not connect to the server. Please check your network or server status.", true);
+         return null;
+     }
+diff --git a/public/js/modules/auth.js b/public/js/modules/auth.js
+index 19375f6..bccc841 100644
+--- a/public/js/modules/auth.js
++++ b/public/js/modules/auth.js
+@@ -318,7 +318,7 @@ export async function checkAuthStatus() {
+     loginError.classList.add('hidden'); // Clear any previous errors
+ 
+     try {
+-        const res = await fetch('/api/auth/status');
++        const res = await fetch(withBase('/api/auth/status'));
+         if (!res.ok) {
+             console.warn(`[AUTH] /api/auth/status returned non-OK status: ${res.status} ${res.statusText}`);
+         }
+@@ -330,7 +330,7 @@ export async function checkAuthStatus() {
+             showApp(status.user);
+         } else {
+             console.log('[AUTH] User not logged in. Checking if setup is needed...');
+-            const setupRes = await fetch('/api/auth/needs-setup');
++            const setupRes = await fetch(withBase('/api/auth/needs-setup'));
+             if (!setupRes.ok) {
+                 console.warn(`[AUTH] /api/auth/needs-setup returned non-OK status: ${setupRes.status} ${setupRes.statusText}`);
+             }
+@@ -378,7 +378,7 @@ export function setupAuthEventListeners() {
+         const password = loginPassword.value;
+ 
+         try {
+-            const res = await fetch('/api/auth/login', {
++            const res = await fetch(withBase('/api/auth/login'), {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ username, password })
+@@ -409,7 +409,7 @@ export function setupAuthEventListeners() {
+         const password = setupPassword.value;
+ 
+         try {
+-            const res = await fetch('/api/auth/setup-admin', {
++            const res = await fetch(withBase('/api/auth/setup-admin'), {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ username, password })
+@@ -435,7 +435,7 @@ export function setupAuthEventListeners() {
+     logoutBtn.addEventListener('click', async () => {
+         console.log('[AUTH_EVENT] Logout button clicked.');
+         try {
+-            const res = await fetch('/api/auth/logout', { method: 'POST' });
++            const res = await fetch(withBase('/api/auth/logout'), { method: 'POST' });
+             if (!res.ok) {
+                 console.warn(`[AUTH_EVENT] Logout API returned non-OK status: ${res.status}`);
+             }
+diff --git a/public/js/modules/basePath.js b/public/js/modules/basePath.js
+new file mode 100644
+index 0000000..286aa8a
+--- /dev/null
++++ b/public/js/modules/basePath.js
+@@ -0,0 +1,53 @@
++/**
++ * basePath.js
++ * Centralized base path detection and resolution for ViniPlay.
++ * Supports root deployments (/), predefined subpaths (/viniplay), or any custom path (/tv, /iptv).
++ */
++
++const metaTag = typeof document !== 'undefined' ? document.querySelector('meta[name="base-path"]') : null;
++const metaContent = metaTag ? metaTag.getAttribute('content') : null;
++
++const detectedPrefix = (typeof window !== 'undefined' && window.__VINI_BASE_PATH__ !== undefined)
++    ? window.__VINI_BASE_PATH__
++    : (metaContent !== null ? metaContent : '');
++
++// Normalize BASE_PATH: ensure single leading slash and no trailing slash (empty string if root)
++export const BASE_PATH = detectedPrefix
++    ? (detectedPrefix === '/' ? '' : (detectedPrefix.startsWith('/') ? detectedPrefix : '/' + detectedPrefix).replace(/\/+$/, ''))
++    : '';
++
++/**
++ * Returns an absolute URL or path prefixed with BASE_PATH.
++ * @param {string} path - URL path (e.g. '/stream', '/api/channels', '/viniplay.png')
++ * @returns {string} - Full path prefixed with BASE_PATH
++ */
++export function withBase(path) {
++    if (!path || path === '/') {
++        return BASE_PATH ? `${BASE_PATH}/` : '/';
++    }
++    // If it's already an absolute or special URL, leave it untouched
++    if (/^(https?:|blob:|data:|\/\/)/i.test(path)) {
++        return path;
++    }
++    const cleanPath = path.startsWith('/') ? path : '/' + path;
++    if (BASE_PATH && (cleanPath === BASE_PATH || cleanPath.startsWith(BASE_PATH + '/'))) {
++        return cleanPath;
++    }
++    return `${BASE_PATH}${cleanPath}`;
++}
++
++/**
++ * Strips BASE_PATH from the beginning of a URL or pathname for client-side routing.
++ * @param {string} pathname - Full pathname (e.g. '/viniplay/tvguide' or '/tvguide')
++ * @returns {string} - Clean path without the BASE_PATH prefix
++ */
++export function stripBase(pathname) {
++    if (!pathname) return '/';
++    if (!BASE_PATH) return pathname;
++    if (pathname === BASE_PATH || pathname === `${BASE_PATH}/`) return '/';
++    if (pathname.startsWith(`${BASE_PATH}/`)) {
++        const stripped = pathname.slice(BASE_PATH.length);
++        return stripped.startsWith('/') ? stripped : '/' + stripped;
++    }
++    return pathname;
++}
+diff --git a/public/js/modules/cast.js b/public/js/modules/cast.js
+index e9b1f47..928705b 100644
+--- a/public/js/modules/cast.js
++++ b/public/js/modules/cast.js
+@@ -32,7 +32,7 @@ async function stopCastStream(streamUrl) {
+     try {
+         console.log(`[CAST] Sending stop request for Cast stream: ${streamUrl}`);
+         const activeCastProfileId = guideState.settings?.activeCastProfileId || 'cast-default';
+-        const response = await fetch('/api/stream/stop', {
++        const response = await fetch(withBase('/api/stream/stop'), {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ url: streamUrl, profileId: activeCastProfileId })
+@@ -252,7 +252,7 @@ export async function loadMedia(url, name, logo) {
+     // Generate and append cast authentication token
+     try {
+         console.log('[CAST] Requesting authentication token...');
+-        const response = await fetch('/api/cast/generate-token', {
++        const response = await fetch(withBase('/api/cast/generate-token'), {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ streamUrl: url })
+diff --git a/public/js/modules/dvr.js b/public/js/modules/dvr.js
+index bfb2e67..6f06ec4 100644
+--- a/public/js/modules/dvr.js
++++ b/public/js/modules/dvr.js
+@@ -5,6 +5,7 @@
+ 
+ import { UIElements, dvrState, guideState, appState } from './state.js';
+ import { apiFetch } from './api.js';
++import { withBase } from './basePath.js';
+ import { showNotification, showConfirm, openModal, closeModal } from './ui.js';
+ import { handleSearchAndFilter } from './guide.js';
+ // MODIFIED: Import the corrected navigation function from notification.js
+@@ -103,7 +104,7 @@ async function playTimeshiftStream(job) {
+     // 1. Stop any existing stream in the main player
+     await stopAndCleanupPlayer();
+ 
+-    const streamUrl = `/api/dvr/timeshift/${job.id}`;
++    const streamUrl = withBase(`/api/dvr/timeshift/${job.id}`);
+     console.log(`[DVR_TIMESHIFT] Starting playback for URL: ${streamUrl}`);
+     videoTitle.textContent = `${job.programTitle} (Recording...)`;
+ 
+@@ -152,7 +153,7 @@ async function playCompletedTsFile(recording) {
+ 
+     await stopAndCleanupPlayer(); // Clean up main player first
+ 
+-    const streamUrl = `/dvr/${recording.filename}`;
++    const streamUrl = withBase(`/dvr/${recording.filename}`);
+     console.log(`[DVR_PLAYBACK] Starting playback for completed TS file: ${streamUrl}`);
+     videoTitle.textContent = recording.programTitle;
+ 
+@@ -454,7 +455,7 @@ export function setupDvrEventListeners() {
+             } else {
+                 // Use the original, simpler player for non-ts files like .mp4
+                 UIElements.recordingTitle.textContent = recording.programTitle;
+-                UIElements.recordingVideoElement.src = `/dvr/${recording.filename}`;
++                UIElements.recordingVideoElement.src = withBase(`/dvr/${recording.filename}`);
+                 openModal(UIElements.recordingPlayerModal);
+             }
+         } else if (e.target.closest('.delete-recording-btn')) {
+diff --git a/public/js/modules/multiview.js b/public/js/modules/multiview.js
+index aed7d38..a3ef271 100644
+--- a/public/js/modules/multiview.js
++++ b/public/js/modules/multiview.js
+@@ -6,6 +6,7 @@
+ 
+ import { appState, guideState, UIElements } from './state.js';
+ import { apiFetch, stopStream, startRedirectStream, stopRedirectStream } from './api.js';
++import { withBase } from './basePath.js';
+ import { showNotification, openModal, closeModal, showConfirm } from './ui.js';
+ import { ICONS } from './icons.js';
+ 
+@@ -675,7 +676,7 @@ async function playChannelInWidget(widgetId, channel, gridstackItemContentEl) {
+         profileIdToUse = hasNVIDIA ? 'ffmpeg-fmp4-nvidia' : 'ffmpeg-fmp4';
+         console.log(`[MultiView] Auto-selected ${hasNVIDIA ? 'NVIDIA' : 'CPU'} fMP4 profile for VOD`);
+ 
+-        streamUrlToPlay = `/stream?url=${encodeURIComponent(channel.url)}&profileId=${profileIdToUse}&userAgentId=${userAgentId}`;
++        streamUrlToPlay = withBase(`/stream?url=${encodeURIComponent(channel.url)}&profileId=${profileIdToUse}&userAgentId=${userAgentId}`);
+         useNativeVideo = true;
+     } else {
+         // For live streams, use existing logic
+@@ -689,7 +690,7 @@ async function playChannelInWidget(widgetId, channel, gridstackItemContentEl) {
+ 
+         streamUrlToPlay = profile.command === 'redirect'
+             ? channel.url
+-            : `/stream?url=${encodeURIComponent(channel.url)}&profileId=${profileIdToUse}&userAgentId=${userAgentId}`;
++            : withBase(`/stream?url=${encodeURIComponent(channel.url)}&profileId=${profileIdToUse}&userAgentId=${userAgentId}`);
+ 
+         if (profile.command === 'redirect') {
+             const historyId = await startRedirectStream(channel.url, channel.id, channel.name, channel.logo);
 diff --git a/public/js/modules/notification.js b/public/js/modules/notification.js
-index d44a456..33a7074 100644
+index d44a456..509e2e7 100644
 --- a/public/js/modules/notification.js
 +++ b/public/js/modules/notification.js
-@@ -437,7 +437,8 @@ export const navigateToProgramInGuide = async (channelId, programStart, programI
+@@ -5,6 +5,7 @@
+  */
+ 
+ import { showNotification, showConfirm, navigate, openModal, closeModal } from './ui.js';
++import { stripBase } from './basePath.js';
+ import { UIElements, guideState, appState } from './state.js';
+ import { handleSearchAndFilter, scrollToChannel, openProgramDetails } from './guide.js';
+ import { getVapidKey, subscribeToPush, addProgramNotification, getProgramNotifications, deleteProgramNotification, unsubscribeFromPush, clearPastNotifications } from './api.js';
+@@ -437,7 +438,8 @@ export const navigateToProgramInGuide = async (channelId, programStart, programI
          const stableChannelIdSuffix = channelId.includes('_') ? '_' + channelId.split('_').pop() : channelId;
  
          // No need to navigate again if we are already on the guide page from the deep link
 -        if (window.location.pathname !== '/tvguide' && window.location.pathname !== '/') {
-+        const currentNavPath = window.location.pathname.replace(/^\/viniplay(\/|$)/, "/") || "/";
++        const currentNavPath = stripBase(window.location.pathname);
 +        if (currentNavPath !== '/tvguide' && currentNavPath !== '/') {
              navigate('/tvguide');
              // Wait a moment for the page switch to happen visually.
              await new Promise(resolve => setTimeout(resolve, 50));
 diff --git a/public/js/modules/player.js b/public/js/modules/player.js
-index c7adf77..451faaa 100644
+index c7adf77..1008477 100644
 --- a/public/js/modules/player.js
 +++ b/public/js/modules/player.js
-@@ -232,7 +232,7 @@ export const playChannel = (url, name, channelId) => {
+@@ -6,6 +6,7 @@
+ import { appState, guideState, UIElements } from './state.js';
+ // MODIFIED: Added stopStream to the import
+ import { saveUserSetting, stopStream, startRedirectStream, stopRedirectStream } from './api.js';
++import { withBase } from './basePath.js';
+ import { showNotification, openModal, closeModal } from './ui.js';
+ import { castState, loadMedia, setLocalPlayerState } from './cast.js';
+ import { logToPlayerConsole } from './player_direct.js';
+@@ -232,7 +233,7 @@ export const playChannel = (url, name, channelId) => {
          return showNotification("Stream profile not found.", true);
      }
  
 -    const streamUrlToPlay = profile.command === 'redirect' ? url : `/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}`;
-+    const streamUrlToPlay = profile.command === 'redirect' ? url : `/viniplay/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}`;
++    const streamUrlToPlay = profile.command === 'redirect' ? url : withBase(`/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}`);
      const channel = guideState.channels.find(c => c.id === channelId);
      const logo = channel ? channel.logo : '';
  
-@@ -400,7 +400,7 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -400,7 +401,7 @@ export const playVOD = async (url, title, logo = '') => {
      const settings = guideState.settings;
      const profileId = settings.activeStreamProfileId;
      const userAgentId = settings.activeUserAgentId;
@@ -62,7 +365,7 @@ index c7adf77..451faaa 100644
  
      if (!profileId || !userAgentId || !profile) {
          const errorMsg = "Active stream profile or user agent not set/found. Cannot play VOD via profile. Please check settings.";
-@@ -412,11 +412,24 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -412,11 +413,24 @@ export const playVOD = async (url, title, logo = '') => {
  
      logToPlayerConsole(`Using Profile: ${profile.name}, User Agent ID: ${userAgentId}`);
  
@@ -84,11 +387,11 @@ index c7adf77..451faaa 100644
      const streamUrlToPlay = profile.command === 'redirect'
          ? url // If redirect, still use mpegts.js but with the direct URL
 -        : `/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}&vodName=${encodeURIComponent(title)}&vodLogo=${encodeURIComponent(logo)}`;
-+        : `/viniplay/stream?url=${encodeURIComponent(url)}&profileId=${profile.id}&userAgentId=${userAgentId}&vodName=${encodeURIComponent(title)}&vodLogo=${encodeURIComponent(logo)}&isVod=true`;
++        : withBase(`/stream?url=${encodeURIComponent(url)}&profileId=${profile.id}&userAgentId=${userAgentId}&vodName=${encodeURIComponent(title)}&vodLogo=${encodeURIComponent(logo)}&isVod=true`);
  
      console.log(`[VOD_PLAYER] Final mpegts.js stream URL: ${streamUrlToPlay}`);
      logToPlayerConsole(`Final stream URL: ${streamUrlToPlay}`);
-@@ -424,7 +437,7 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -424,7 +438,7 @@ export const playVOD = async (url, title, logo = '') => {
      // Store the *original* VOD URL for potential stop requests if using /stream
      if (profile.command !== 'redirect') {
          currentLocalStreamUrl = url;
@@ -97,7 +400,7 @@ index c7adf77..451faaa 100644
      }
  
      // --- Activity Logging for Redirect VODs (using mpegts.js) ---
-@@ -445,10 +458,15 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -445,10 +459,15 @@ export const playVOD = async (url, title, logo = '') => {
      if (mpegts.isSupported()) {
          const mpegtsConfig = {
              enableStashBuffer: true,
@@ -116,7 +419,7 @@ index c7adf77..451faaa 100644
  
          try {
              appState.player = mpegts.createPlayer({
-@@ -460,8 +478,11 @@ export const playVOD = async (url, title, logo = '') => {
+@@ -460,8 +479,11 @@ export const playVOD = async (url, title, logo = '') => {
              // Setup error handling
              appState.player.on(mpegts.Events.ERROR, (errorType, errorDetail) => {
                  const errorMsg = `Player Error: ${errorType} - ${errorDetail}`;
@@ -129,17 +432,76 @@ index c7adf77..451faaa 100644
                  showNotification(errorMsg, true);
                  stopAndCleanupPlayer(); // Cleanup on error
              });
+diff --git a/public/js/modules/player_direct.js b/public/js/modules/player_direct.js
+index 68e3553..697528a 100644
+--- a/public/js/modules/player_direct.js
++++ b/public/js/modules/player_direct.js
+@@ -9,6 +9,7 @@ import { UIElements, guideState, appState } from './state.js';
+ import { showNotification } from './ui.js';
+ // MODIFIED: Import stopStream to explicitly kill the server process.
+ import { saveUserSetting, stopStream, startRedirectStream, stopRedirectStream } from './api.js';
++import { withBase } from './basePath.js';
+ 
+ const MAX_RECENT_LINKS = 10;
+ let currentStreamUrl = null; // NEW: Track the URL of the current stream
+@@ -369,7 +370,7 @@ function playVODStream(url, streamType) {
+ 
+         // For the direct player with Direct Play OFF, ALWAYS use /stream endpoint
+         // This allows the server to handle transcoding and avoids CORS issues
+-        const streamUrlToPlay = `/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}`;
++        const streamUrlToPlay = withBase(`/stream?url=${encodeURIComponent(url)}&profileId=${profileId}&userAgentId=${userAgentId}`);
+ 
+         console.log(`[DEBUG] playVODStream: Stream URL: ${streamUrlToPlay}`);
+         logToPlayerConsole(`Stream URL: ${streamUrlToPlay}`);
+@@ -494,7 +495,7 @@ function playLiveStream(url, streamType) {
+             showNotification(errorMsg, true);
+             return;
+         }
+-        streamUrlToPlay = `/stream?url=${encodeURIComponent(url)}&profileId=${profileIdToUse}&userAgentId=${userAgentId}`;
++        streamUrlToPlay = withBase(`/stream?url=${encodeURIComponent(url)}&profileId=${profileIdToUse}&userAgentId=${userAgentId}`);
+         logToPlayerConsole(`Proxy URL: ${streamUrlToPlay}`);
+ 
+     } else {
+diff --git a/public/js/modules/settings.js b/public/js/modules/settings.js
+index 0bd3e54..fdd629b 100644
+--- a/public/js/modules/settings.js
++++ b/public/js/modules/settings.js
+@@ -1206,7 +1206,7 @@ async function refreshLogInfo() {
+  */
+ async function handleDownloadLogs() {
+     try {
+-        window.location.href = '/api/logs/download';
++        window.location.href = withBase('/api/logs/download');
+         showNotification('Downloading logs...', false, 3000);
+     } catch (error) {
+         console.error('[SETTINGS] Error downloading logs:', error);
+@@ -1781,7 +1781,7 @@ export function setupSettingsEventListeners() {
+     // --- Backup & Restore ---
+     UIElements.exportSettingsBtn.addEventListener('click', () => {
+         // Trigger download via direct link
+-        window.location.href = '/api/settings/export';
++        window.location.href = withBase('/api/settings/export');
+     });
+ 
+     UIElements.importSettingsBtn.addEventListener('click', () => {
 diff --git a/public/js/modules/ui.js b/public/js/modules/ui.js
-index 3d59243..b8a4d30 100644
+index 3d59243..a844305 100644
 --- a/public/js/modules/ui.js
 +++ b/public/js/modules/ui.js
-@@ -362,7 +362,8 @@ export const tempBlockConfigReload = () => {
+@@ -16,6 +16,7 @@ import { finalizeGuideLoad, handleGuideLoad } from './guide.js';
+ import { fetchConfig } from './api.js';
+ import { initActivityPage } from './admin.js';
+ import { initVodPage } from './vod.js';
++import { withBase, stripBase } from './basePath.js';
+ 
+ 
+ let confirmCallback = null;
+@@ -362,7 +363,7 @@ export const tempBlockConfigReload = () => {
  export const handleRouteChange = () => {
      const wasMultiView = currentPage.startsWith('/multiview');
      const wasPlayer = currentPage.startsWith('/player');
 -    const path = window.location.pathname;
-+    const rawPath = window.location.pathname;
-+    const path = rawPath.replace(/^\/viniplay(\/|$)/, "/") || "/";
++    const path = stripBase(window.location.pathname);
  
      if (wasMultiView && !path.startsWith('/multiview')) {
          if (isMultiViewActive()) {
@@ -148,7 +510,7 @@ index 3d59243..b8a4d30 100644
                  }
              );
 -            window.history.pushState({}, currentPage, window.location.origin + currentPage);
-+            window.history.pushState({}, currentPage, window.location.origin + "/viniplay" + (currentPage === "/" ? "" : currentPage));
++            window.history.pushState({}, currentPage, window.location.origin + withBase(currentPage));
              return;
          } else {
              cleanupMultiView();
@@ -157,25 +519,24 @@ index 3d59243..b8a4d30 100644
                  }
              );
 -            window.history.pushState({}, currentPage, window.location.origin + currentPage);
-+            window.history.pushState({}, currentPage, window.location.origin + "/viniplay" + (currentPage === "/" ? "" : currentPage));
++            window.history.pushState({}, currentPage, window.location.origin + withBase(currentPage));
              return;
          } else {
              cleanupDirectPlayer();
-@@ -549,8 +550,10 @@ async function proceedWithRouteChange(path) {
+@@ -549,8 +550,9 @@ async function proceedWithRouteChange(path) {
   * @param {string} path - The new path to navigate to.
   */
  export const navigate = (path) => {
 -    if (window.location.pathname !== path) {
 -        window.history.pushState({}, path, window.location.origin + path);
-+    const rawPath = window.location.pathname;
-+    const current = rawPath.replace(/^\/viniplay(\/|$)/, "/") || "/";
++    const current = stripBase(window.location.pathname);
 +    if (current !== path) {
-+        window.history.pushState({}, path, window.location.origin + "/viniplay" + (path === "/" ? "" : path));
++        window.history.pushState({}, path, window.location.origin + withBase(path));
      }
      handleRouteChange();
  };
 diff --git a/public/js/modules/vod.js b/public/js/modules/vod.js
-index 8262e9a..b7c0337 100644
+index 8262e9a..bfb02a5 100644
 --- a/public/js/modules/vod.js
 +++ b/public/js/modules/vod.js
 @@ -152,7 +152,7 @@ function renderVodGrid() {
@@ -183,7 +544,7 @@ index 8262e9a..b7c0337 100644
  
              // Use image proxy for both HTTP and HTTPS posters to avoid mixed content warnings
 -            const proxiedLogo = displayLogo.startsWith('http') ? `/api/image-proxy?url=${encodeURIComponent(displayLogo)}` : displayLogo;
-+            const proxiedLogo = displayLogo.startsWith('http') ? `/viniplay/api/image-proxy?url=${encodeURIComponent(displayLogo)}` : displayLogo;
++            const proxiedLogo = displayLogo.startsWith('http') ? withBase(`/api/image-proxy?url=${encodeURIComponent(displayLogo)}`) : displayLogo;
  
              return `
                  <div class="vod-item" data-id="${itemIdStr}">
@@ -192,15 +553,96 @@ index 8262e9a..b7c0337 100644
      // Use image proxy for modal posters/backdrops
      const posterUrl = item.logo || `https://placehold.co/400x600/1f2937/d1d5db?text=${encodeURIComponent(item.name)}`;
 -    const proxiedPoster = posterUrl.startsWith('http') ? `/api/image-proxy?url=${encodeURIComponent(posterUrl)}` : posterUrl;
-+    const proxiedPoster = posterUrl.startsWith('http') ? `/viniplay/api/image-proxy?url=${encodeURIComponent(posterUrl)}` : posterUrl;
++    const proxiedPoster = posterUrl.startsWith('http') ? withBase(`/api/image-proxy?url=${encodeURIComponent(posterUrl)}`) : posterUrl;
      UIElements.vodDetailsPoster.src = proxiedPoster;
      UIElements.vodDetailsBackdropImg.src = item.logo ? proxiedPoster : '';
  
 diff --git a/server.js b/server.js
-index 114a601..748c539 100644
+index 114a601..4d19b80 100644
 --- a/server.js
 +++ b/server.js
-@@ -374,13 +374,15 @@ if (sessionSecret.includes('replace_this')) {
+@@ -273,6 +273,62 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
+     }
+ });
+ 
++// --- Subpath and Base Path Configuration ---
++const CONFIGURED_BASE_PATH = (process.env.BASE_PATH || '').replace(/\/+$/, '');
++
++function getEffectiveBasePath(req) {
++    if (CONFIGURED_BASE_PATH) {
++        return CONFIGURED_BASE_PATH.startsWith('/') ? CONFIGURED_BASE_PATH : '/' + CONFIGURED_BASE_PATH;
++    }
++    const headerPrefix = req && req.headers ? req.headers['x-forwarded-prefix'] : null;
++    if (headerPrefix) {
++        const clean = headerPrefix.split(',')[0].trim().replace(/\/+$/, '');
++        return clean ? (clean.startsWith('/') ? clean : '/' + clean) : '';
++    }
++    return '';
++}
++
++function serveIndexHtml(req, res) {
++    const indexPath = path.join(PUBLIC_DIR, 'index.html');
++    fs.readFile(indexPath, 'utf8', (err, html) => {
++        if (err) {
++            console.error('[SERVER] Failed to read index.html:', err);
++            return res.status(500).send('Error loading index.html');
++        }
++        const basePath = getEffectiveBasePath(req);
++        let outputHtml = html;
++        const baseInjection = `\n    <meta name="base-path" content="${basePath}">\n    <script>window.__VINI_BASE_PATH__ = "${basePath}";</script>`;
++        outputHtml = outputHtml.replace('<head>', `<head>${baseInjection}`);
++
++        if (basePath) {
++            outputHtml = outputHtml
++                .replace(/href="\/viniplay\.png"/g, `href="${basePath}/viniplay.png"`)
++                .replace(/href="\/manifest\.json"/g, `href="${basePath}/manifest.json"`)
++                .replace(/src="\/js\//g, `src="${basePath}/js/`);
++        }
++
++        res.setHeader('Content-Type', 'text/html; charset=UTF-8');
++        res.setHeader('Cache-Control', 'public, no-cache, must-revalidate');
++        res.send(outputHtml);
++    });
++}
++
++// Subpath normalization middleware
++app.use((req, res, next) => {
++    const basePath = getEffectiveBasePath(req);
++    if (basePath) {
++        if (req.url === basePath) {
++            return res.redirect(301, `${basePath}/`);
++        } else if (req.url.startsWith(basePath + '/') || req.url.startsWith(basePath + '?')) {
++            req.url = req.url.slice(basePath.length) || '/';
++            if (!req.url.startsWith('/') && !req.url.startsWith('?')) {
++                req.url = '/' + req.url;
++            }
++        }
++    }
++    next();
++});
++
+ // --- Middleware ---
+ // 1. Smart Caching for API: Allow cache presence but FORCE revalidation every time.
+ // 'no-cache' = "Check with server before using cached copy".
+@@ -284,6 +340,7 @@ app.use('/api', (req, res, next) => {
+ // 2. Smart Caching for Static Files:
+ // Allow browser to cache index.html/js, but REQUIRE it to check if they changed (304 Not Modified)
+ app.use(express.static(PUBLIC_DIR, {
++    index: false,
+     setHeaders: (res, path) => {
+         if (path.endsWith('index.html') || path.endsWith('.js')) {
+             res.set('Cache-Control', 'public, no-cache, must-revalidate');
+@@ -293,6 +350,9 @@ app.use(express.static(PUBLIC_DIR, {
+ app.use(bodyParser.json());
+ app.use(bodyParser.urlencoded({ extended: true }));
+ 
++app.get('/', serveIndexHtml);
++app.get('/index.html', serveIndexHtml);
++
+ const updateAndScheduleSourceRefreshes = () => {
+     console.log('[SCHEDULER] Updating and scheduling all source refreshes...');
+     const settings = getSettings();
+@@ -374,13 +434,15 @@ if (sessionSecret.includes('replace_this')) {
      console.warn('[SECURITY] Using a weak or default SESSION_SECRET. Please replace it.');
  }
  
@@ -213,11 +655,11 @@ index 114a601..748c539 100644
          resave: false,
          saveUninitialized: false,
 -        cookie: { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.NODE_ENV === 'production' },
-+        cookie: { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === 'true' },
++        cookie: { path: '/', maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true, secure: process.env.COOKIE_SECURE === 'true' },
      })
  );
  
-@@ -3419,7 +3421,27 @@ app.get('/stream', allowLocalOrAuth, async (req, res) => {
+@@ -3419,7 +3481,27 @@ app.get('/stream', allowLocalOrAuth, async (req, res) => {
          .replace(/{streamUrl}/g, streamUrl)
          .replace(/{userAgent}|{clientUserAgent}/g, userAgent.value);
  
@@ -246,7 +688,7 @@ index 114a601..748c539 100644
  
      console.log(`[STREAM] FFmpeg command args: ffmpeg ${args.join(' ')}`);
      const ffmpeg = spawn('ffmpeg', args);
-@@ -4212,7 +4234,27 @@ async function startRecording(job) {
+@@ -4212,7 +4294,27 @@ async function startRecording(job) {
          .replace(/{userAgent}/g, userAgent.value)
          .replace(/{filePath}/g, fullFilePath);
  
@@ -275,3 +717,12 @@ index 114a601..748c539 100644
  
      console.log(`[DVR] Spawning ffmpeg for job ${job.id} with command: ffmpeg ${args.join(' ')}`);
      const ffmpeg = spawn('ffmpeg', args);
+@@ -5066,7 +5168,7 @@ app.get('*', (req, res) => {
+     if (fs.existsSync(filePath) && fs.lstatSync(filePath).isFile()) {
+         return res.sendFile(filePath);
+     }
+-    res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
++    serveIndexHtml(req, res);
+ });
+ 
+ // --- Server Start ---
