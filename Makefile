@@ -16,7 +16,8 @@ endif
         deploy-viniplay status-viniplay logs-viniplay stop-viniplay start-viniplay remove-viniplay \
         deploy-app deploy-backend deploy-frontend deploy-ingress \
         status-app logs-backend logs-frontend remove-app \
-        build-and-deploy-app build-and-deploy-backend build-and-deploy-frontend clean
+        build-and-deploy-app build-and-deploy-backend build-and-deploy-frontend clean \
+        generate-cert deploy-tls status-tls
 
 all: help
 
@@ -64,6 +65,11 @@ help:
 	@echo "   make build-and-deploy-backend- Compila y despliega solo Backend"
 	@echo "   make build-and-deploy-frontend Compila y despliega solo Frontend"
 	@echo "   make remove-app              - Elimina aplicativo tasks-app"
+	@echo ""
+	@echo " Seguridad y Certificados SSL/TLS (HTTPS):"
+	@echo "   make generate-cert           - Genera certificado autofirmado con SAN (IP + Dominios)"
+	@echo "   make deploy-tls              - Despliega certificados y configura Traefik TLSStore"
+	@echo "   make status-tls              - Verifica el estado de HTTPS y certificados en el servidor"
 	@echo ""
 	@echo " Aplicación de prueba:"
 	@echo "   make deploy-sample           - Despliega app de prueba (NodePort/Ingress)"
@@ -228,4 +234,34 @@ deploy-sample:
 
 remove-sample:
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl delete -f ~/k8s-setup/manifests/sample-app/sample-app.yaml"
+
+# ==============================================================================
+# Seguridad y Certificados SSL/TLS (HTTPS)
+# ==============================================================================
+generate-cert:
+	@chmod +x manifests/tls/generate-cert.sh
+	@manifests/tls/generate-cert.sh $(REMOTE_HOST)
+
+deploy-tls:
+	@echo "🔐 Desplegando configuración SSL/TLS en $(REMOTE_HOST)..."
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/tls"
+	@scp -r manifests/tls/* $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/tls/
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl apply -f ~/k8s-setup/manifests/tls/traefik-tls.yaml"
+	@echo "✅ Certificado TLS y Traefik TLSStore desplegados."
+	@echo "   HTTPS activo en https://$(REMOTE_HOST)/viniplay"
+	@echo "   HTTPS activo en https://$(REMOTE_HOST)/tasks"
+	@echo "   HTTPS activo en https://$(REMOTE_HOST)/demo"
+
+status-tls:
+	@echo "🔍 Verificando TLSStore y Secret en $(REMOTE_HOST)..."
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n kube-system get tlsstores.traefik.io default && k3s kubectl -n kube-system get secret cluster-default-tls"
+	@echo ""
+	@echo "🌐 Probando conexión HTTPS a $(REMOTE_HOST)..."
+	@curl -k -s -o /dev/null -w "   Status /viniplay/ : %{http_code}\n" https://$(REMOTE_HOST)/viniplay/ || true
+	@curl -k -s -o /dev/null -w "   Status /tasks/    : %{http_code}\n" https://$(REMOTE_HOST)/tasks/ || true
+	@curl -k -s -o /dev/null -w "   Status /demo      : %{http_code}\n" https://$(REMOTE_HOST)/demo || true
+	@echo ""
+	@echo "📜 Información del certificado en el puerto 443:"
+	@echo | openssl s_client -connect $(REMOTE_HOST):443 -servername $(REMOTE_HOST) 2>/dev/null | openssl x509 -noout -subject -issuer -dates
+
 

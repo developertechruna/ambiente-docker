@@ -30,6 +30,7 @@ data:
     server {
         listen 80;
         server_name _;
+        absolute_redirect off;
 
         client_max_body_size 500M;
 
@@ -44,7 +45,7 @@ data:
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
             proxy_buffering off;
         }
 
@@ -54,7 +55,7 @@ data:
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
             proxy_buffering off;
             proxy_read_timeout 86400s;
             proxy_send_timeout 86400s;
@@ -69,7 +70,7 @@ data:
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
             proxy_set_header X-Forwarded-Prefix /viniplay;
 
             # Evita compresión upstream para que sub_filter pueda modificar el contenido al vuelo
@@ -264,8 +265,10 @@ metadata:
   name: viniplay-ingress
   namespace: viniplay
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
+  tls:
+  - secretName: cluster-default-tls
   rules:
   - http:
       paths:

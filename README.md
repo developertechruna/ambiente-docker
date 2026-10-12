@@ -83,6 +83,7 @@ ambiente-docker/
     ├── oracle19c/                  # Oracle Database 19c con PVC y LoadBalancer
     ├── app-task/                   # Backend Spring Boot 3 + Frontend Angular 18
     ├── viniplay/                   # ViniPlay IPTV Player, TV Guide & DVR
+    ├── tls/                        # Certificados SSL/TLS (HTTPS) y Traefik TLSStore
     └── sample-app/                 # Aplicación de prueba sin IPs fijas
 ```
 
@@ -231,3 +232,47 @@ Formas de consumo:
   ```bash
   docker compose -f docker-compose.viniplay.yml up -d
   ```
+
+---
+
+## 🔒 Certificados SSL/TLS (HTTPS) para Todas las Aplicaciones
+
+Todas las aplicaciones servidas desde el clúster K3s cuentan con soporte de **HTTPS (puerto 443)** a través de Traefik Ingress Controller, manteniendo simultáneamente la compatibilidad con **HTTP (puerto 80)**.
+
+### URLs Seguras (HTTPS):
+- **ViniPlay:** `https://192.168.18.228/viniplay`
+- **Tasks App (Frontend):** `https://192.168.18.228/tasks`
+- **Tasks App (Backend API):** `https://192.168.18.228/api/tasks`
+- **Aplicativo Demo:** `https://192.168.18.228/demo`
+- **Kubernetes Dashboard:** `https://192.168.18.228:30443`
+
+### Características del Certificado:
+- **Vigencia:** 10 años (RSA 2048-bit).
+- **Subject Alternative Names (SAN):**
+  - IPs: `192.168.18.228`, `127.0.0.1`
+  - Dominios: `archlinux`, `localhost`, `192.168.18.228.nip.io`, `*.192.168.18.228.nip.io`, `*.local`, `*.k8s.local`
+- **Traefik TLSStore:** Configurado como certificado por defecto (`TLSStore default` en `kube-system`). Cualquier conexión entrante por el puerto 443 (`websecure`) que no coincida con un SNI específico recibe este certificado automáticamente.
+
+### Comandos de Gestión:
+```bash
+# 1. Regenerar el certificado (opcional si cambia la IP):
+make generate-cert HOST=192.168.18.228
+
+# 2. Desplegar / actualizar certificados y configuración TLS en K3s:
+make deploy-tls
+
+# 3. Comprobar estado de TLS, certificados y endpoints HTTPS:
+make status-tls
+```
+
+### Confianza del Certificado en Clientes (Opcional):
+El certificado público se encuentra en `manifests/tls/tls.crt`. Para que los navegadores no muestren la pantalla de advertencia ("No seguro"):
+- **Linux (Arch/Ubuntu):**
+  ```bash
+  sudo cp manifests/tls/tls.crt /usr/local/share/ca-certificates/k3s-cluster.crt # Ubuntu/Debian
+  # O en Arch:
+  sudo trust anchor manifests/tls/tls.crt
+  ```
+- **Windows:** Importar `tls.crt` en *Entidades de certificación raíz de confianza* (Trusted Root Certification Authorities).
+- **Chrome / Edge / Firefox:** Opcionalmente importar `tls.crt` en `chrome://settings/certificates` o `about:preferences#privacy` en la pestaña "Autoridades".
+
