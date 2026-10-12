@@ -1,5 +1,5 @@
 diff --git a/public/index.html b/public/index.html
-index ef6ebf9..780d691 100644
+index ef6ebf9..6ecdd17 100644
 --- a/public/index.html
 +++ b/public/index.html
 @@ -4,6 +4,7 @@
@@ -72,7 +72,30 @@ index ef6ebf9..780d691 100644
              <!-- Admin Activity Page -->
              <div id="page-activity" class="hidden flex-grow flex-col items-start p-4 overflow-y-auto custom-scrollbar">
                  <div class="w-full max-w-7xl mx-auto space-y-6 pb-16">
-@@ -2283,6 +2330,10 @@
+@@ -2130,6 +2177,22 @@
+                                     class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-blue-500 focus:border-blue-500"
+                                     min="1" value="10">
+                             </div>
++                            <div class="border-t border-gray-700/50 pt-4">
++                                <label for="vod-min-watch-time-input"
++                                    class="block text-sm font-medium text-gray-400 mb-1">VOD Min Watch Time (seconds)</label>
++                                <p class="text-xs text-gray-500 mb-2">Minimum seconds a video must play before saving progress in Continue Watching.</p>
++                                <input type="number" id="vod-min-watch-time-input"
++                                    class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-blue-500 focus:border-blue-500"
++                                    min="1" max="120" value="5">
++                            </div>
++                            <div>
++                                <label for="vod-sync-interval-input"
++                                    class="block text-sm font-medium text-gray-400 mb-1">VOD Progress Sync Interval (seconds)</label>
++                                <p class="text-xs text-gray-500 mb-2">How often (in seconds) the player syncs watch progress with the server.</p>
++                                <input type="number" id="vod-sync-interval-input"
++                                    class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-blue-500 focus:border-blue-500"
++                                    min="1" max="60" value="5">
++                            </div>
+                             <div class="border-t border-gray-700/50 pt-4">
+                                 <label class="block text-sm font-medium text-gray-400 mb-1">Server Public IP
+                                     Address</label>
+@@ -2283,6 +2346,10 @@
                  class="text-left tab-button text-lg font-medium py-2 px-3 text-gray-300 hover:bg-gray-800 rounded-md transition-colors">
                  <span class="flex items-center gap-2"><span data-icon="dvr"></span> DVR</span>
              </button>
@@ -83,12 +106,12 @@ index ef6ebf9..780d691 100644
              <button id="mobile-nav-vod"
                  class="text-left tab-button text-lg font-medium py-2 px-3 text-gray-300 hover:bg-gray-800 rounded-md transition-colors">
                  <span class="flex items-center gap-2"><span data-icon="multiview"></span> VODs</span>
-@@ -2951,7 +3002,7 @@
+@@ -2951,7 +3018,7 @@
      </div>
  
  
 -    <script type="module" src="/js/main.js?v=2"></script>
-+    <script type="module" src="/js/main.js?v=6"></script>
++    <script type="module" src="/js/main.js?v=7"></script>
  
      <div id="processing-status-modal"
          class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4">
@@ -990,7 +1013,7 @@ index 68e3553..697528a 100644
  
      } else {
 diff --git a/public/js/modules/settings.js b/public/js/modules/settings.js
-index 0bd3e54..afe5da0 100644
+index 0bd3e54..5ab79e0 100644
 --- a/public/js/modules/settings.js
 +++ b/public/js/modules/settings.js
 @@ -11,6 +11,7 @@ import { showNotification, openModal, closeModal, showConfirm, setButtonLoadingS
@@ -1001,7 +1024,25 @@ index 0bd3e54..afe5da0 100644
  
  let currentSourceTypeForEditor = 'url';
  let hardwareChecked = false; // Flag to prevent re-checking hardware on every UI update
-@@ -1206,7 +1207,7 @@ async function refreshLogInfo() {
+@@ -715,6 +716,8 @@ export const updateUIFromSettings = async () => {
+     settings.playerLogLevel = settings.playerLogLevel || 'warning';
+     settings.dvrLogLevel = settings.dvrLogLevel || 'warning';
+     settings.notificationLeadTime = settings.notificationLeadTime ?? 10;
++    settings.vodMinWatchTimeSeconds = settings.vodMinWatchTimeSeconds ?? 5;
++    settings.vodProgressSyncIntervalSeconds = settings.vodProgressSyncIntervalSeconds ?? 5;
+ 
+     settings.dvr = settings.dvr || {};
+     settings.dvr.preBufferMinutes = settings.dvr.preBufferMinutes ?? 1;
+@@ -730,6 +733,8 @@ export const updateUIFromSettings = async () => {
+     UIElements.playerLogLevelSelect.value = settings.playerLogLevel;
+     UIElements.dvrLogLevelSelect.value = settings.dvrLogLevel;
+     UIElements.notificationLeadTimeInput.value = settings.notificationLeadTime;
++    if (UIElements.vodMinWatchTimeInput) UIElements.vodMinWatchTimeInput.value = settings.vodMinWatchTimeSeconds;
++    if (UIElements.vodSyncIntervalInput) UIElements.vodSyncIntervalInput.value = settings.vodProgressSyncIntervalSeconds;
+ 
+     // Update DVR inputs
+     if (UIElements.dvrPreBufferInput) UIElements.dvrPreBufferInput.value = settings.dvr.preBufferMinutes;
+@@ -1206,7 +1211,7 @@ async function refreshLogInfo() {
   */
  async function handleDownloadLogs() {
      try {
@@ -1010,7 +1051,38 @@ index 0bd3e54..afe5da0 100644
          showNotification('Downloading logs...', false, 3000);
      } catch (error) {
          console.error('[SETTINGS] Error downloading logs:', error);
-@@ -1781,7 +1782,7 @@ export function setupSettingsEventListeners() {
+@@ -1444,6 +1449,30 @@ export function setupSettingsEventListeners() {
+         await saveSettingAndNotify(saveGlobalSetting, { notificationLeadTime: value });
+     });
+ 
++    if (UIElements.vodMinWatchTimeInput) {
++        UIElements.vodMinWatchTimeInput.addEventListener('change', async (e) => {
++            const value = parseInt(e.target.value, 10);
++            if (isNaN(value) || value < 1) {
++                showNotification('Min watch time must be at least 1 second.', true);
++                e.target.value = guideState.settings.vodMinWatchTimeSeconds || 5;
++                return;
++            }
++            await saveSettingAndNotify(saveGlobalSetting, { vodMinWatchTimeSeconds: value });
++        });
++    }
++
++    if (UIElements.vodSyncIntervalInput) {
++        UIElements.vodSyncIntervalInput.addEventListener('change', async (e) => {
++            const value = parseInt(e.target.value, 10);
++            if (isNaN(value) || value < 1) {
++                showNotification('Sync interval must be at least 1 second.', true);
++                e.target.value = guideState.settings.vodProgressSyncIntervalSeconds || 5;
++                return;
++            }
++            await saveSettingAndNotify(saveGlobalSetting, { vodProgressSyncIntervalSeconds: value });
++        });
++    }
++
+     // --- Hardware Info Modal ---
+     UIElements.hardwareInfoBtn.addEventListener('click', () => openModal(UIElements.hardwareInfoModal));
+     UIElements.hardwareInfoModalCloseBtn.addEventListener('click', () => closeModal(UIElements.hardwareInfoModal));
+@@ -1781,7 +1810,7 @@ export function setupSettingsEventListeners() {
      // --- Backup & Restore ---
      UIElements.exportSettingsBtn.addEventListener('click', () => {
          // Trigger download via direct link
@@ -1019,6 +1091,19 @@ index 0bd3e54..afe5da0 100644
      });
  
      UIElements.importSettingsBtn.addEventListener('click', () => {
+diff --git a/public/js/modules/state.js b/public/js/modules/state.js
+index 39e322f..1df0268 100644
+--- a/public/js/modules/state.js
++++ b/public/js/modules/state.js
+@@ -29,6 +29,8 @@ export const guideState = {
+         // Add a default for channelColumnWidth
+         channelColumnWidth: window.innerWidth < 768 ? 64 : 180, // Default based on screen size
+         notificationLeadTime: 10, // Default notification lead time in minutes
++        vodMinWatchTimeSeconds: 5, // Default min watch time in seconds
++        vodProgressSyncIntervalSeconds: 5, // Default progress sync interval in seconds
+         multiviewLayouts: [], // To store saved layouts for the user
+         adminPageSize: 25, // NEW: Default page size for the admin history table
+         vodDirectPlayEnabled: false, // Default to false (use mpegts.js/profiles)
 diff --git a/public/js/modules/ui.js b/public/js/modules/ui.js
 index 3d59243..0a28d24 100644
 --- a/public/js/modules/ui.js
@@ -1222,10 +1307,11 @@ index 8262e9a..f19e3f3 100644
      });
 diff --git a/public/js/modules/watchTracker.js b/public/js/modules/watchTracker.js
 new file mode 100644
-index 0000000..b43bc31
+index 0000000..6293244
 --- /dev/null
 +++ b/public/js/modules/watchTracker.js
-@@ -0,0 +1,148 @@
+@@ -0,0 +1,155 @@
++import { guideState } from './state.js';
 +/**
 + * watchTracker.js
 + * Tracks video playback progress and syncs it with the backend API.
@@ -1241,7 +1327,10 @@ index 0000000..b43bc31
 +let lastSyncedTime = -1;
 +let videoElementRef = null;
 +
-+const SYNC_INTERVAL_MS = 10000; // Sync every 10 seconds
++function getSyncIntervalMs() {
++    const sec = parseInt(guideState?.settings?.vodProgressSyncIntervalSeconds, 10);
++    return (sec && sec >= 1 ? sec : 5) * 1000;
++}
 +
 +function getCurrentPlaybackPosition() {
 +    if (!videoElementRef) return 0;
@@ -1266,7 +1355,7 @@ index 0000000..b43bc31
 +    const duration = getMediaDuration();
 +
 +    // If change is less than 3 seconds and not forced, skip
-+    if (!force && Math.abs(currentPos - lastSyncedTime) < 3) return;
++    if (!force && Math.abs(currentPos - lastSyncedTime) < 2) return;
 +
 +    lastSyncedTime = currentPos;
 +
@@ -1303,7 +1392,8 @@ index 0000000..b43bc31
 +    if (!activeContext || !videoElementRef) return;
 +    const currentPos = getCurrentPlaybackPosition();
 +    const duration = getMediaDuration();
-+    if (currentPos < 15) return;
++    const minTime = parseInt(guideState?.settings?.vodMinWatchTimeSeconds, 10) || 5;
++    if (currentPos < minTime) return;
 +
 +    const payload = {
 +        contentType: activeContext.contentType || 'movie',
@@ -1347,11 +1437,13 @@ index 0000000..b43bc31
 +    }
 +
 +    // Periodic sync interval
++    const intervalMs = getSyncIntervalMs();
++    console.log(`[WATCH_TRACKER] Sync interval configured to ${intervalMs / 1000}s`);
 +    syncInterval = setInterval(() => {
 +        if (videoElementRef && !videoElementRef.paused) {
 +            sendProgressUpdate();
 +        }
-+    }, SYNC_INTERVAL_MS);
++    }, intervalMs);
 +}
 +
 +export function stopTracking() {
@@ -1375,7 +1467,7 @@ index 0000000..b43bc31
 +    initialSeekOffset = 0;
 +}
 diff --git a/server.js b/server.js
-index 114a601..5751243 100644
+index 114a601..e71807b 100644
 --- a/server.js
 +++ b/server.js
 @@ -227,6 +227,34 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
@@ -1511,7 +1603,34 @@ index 114a601..5751243 100644
      })
  );
  
-@@ -2531,6 +2621,192 @@ app.get('/api/vod/categories', requireAuth, async (req, res) => {
+@@ -726,6 +816,8 @@ function getSettings() {
+         dvrLogLevel: 'warning',
+         searchScope: 'all_channels_unfiltered',
+         notificationLeadTime: 10,
++        vodMinWatchTimeSeconds: 5,
++        vodProgressSyncIntervalSeconds: 5,
+         sourcesLastUpdated: null,
+         logs: {
+             maxFiles: 5,
+@@ -863,6 +955,17 @@ function getSettings() {
+             }
+         }
+ 
++        if (settings.vodMinWatchTimeSeconds === undefined) {
++            console.log(`[SETTINGS_MIGRATE] Adding missing vodMinWatchTimeSeconds setting.`);
++            settings.vodMinWatchTimeSeconds = 5;
++            needsSave = true;
++        }
++        if (settings.vodProgressSyncIntervalSeconds === undefined) {
++            console.log(`[SETTINGS_MIGRATE] Adding missing vodProgressSyncIntervalSeconds setting.`);
++            settings.vodProgressSyncIntervalSeconds = 5;
++            needsSave = true;
++        }
++
+         // Check that all expected settings are present and set and if not,
+         // generate log to highlight missing setting(s) migration code. 
+         if (!settings || typeof settings !== 'object') {
+@@ -2531,6 +2634,194 @@ app.get('/api/vod/categories', requireAuth, async (req, res) => {
      }
  });
  
@@ -1530,8 +1649,10 @@ index 114a601..5751243 100644
 +        }
 +
 +        const curTime = parseFloat(currentTime) || 0;
-+        // Skip saving if watched less than 15 seconds
-+        if (curTime < 15) {
++        const currentSettings = getSettings();
++        const minWatchSeconds = parseInt(currentSettings?.vodMinWatchTimeSeconds, 10) || 5;
++        // Skip saving if watched less than configured min watch time
++        if (curTime < minWatchSeconds) {
 +            return res.json({ success: true, ignored: true });
 +        }
 +
@@ -1704,7 +1825,7 @@ index 114a601..5751243 100644
  const upload = multer({
      storage: multer.diskStorage({
          destination: (req, file, cb) => {
-@@ -3335,13 +3611,14 @@ function allowLocalOrAuth(req, res, next) {
+@@ -3335,13 +3626,14 @@ function allowLocalOrAuth(req, res, next) {
  
  // MODIFIED: Stream endpoint now allows local network access for Chromecast
  app.get('/stream', allowLocalOrAuth, async (req, res) => {
@@ -1722,7 +1843,7 @@ index 114a601..5751243 100644
  
      const activeStreamInfo = activeStreamProcesses.get(streamKey);
  
-@@ -3419,7 +3696,33 @@ app.get('/stream', allowLocalOrAuth, async (req, res) => {
+@@ -3419,7 +3711,33 @@ app.get('/stream', allowLocalOrAuth, async (req, res) => {
          .replace(/{streamUrl}/g, streamUrl)
          .replace(/{userAgent}|{clientUserAgent}/g, userAgent.value);
  
@@ -1757,7 +1878,7 @@ index 114a601..5751243 100644
  
      console.log(`[STREAM] FFmpeg command args: ffmpeg ${args.join(' ')}`);
      const ffmpeg = spawn('ffmpeg', args);
-@@ -4212,7 +4515,33 @@ async function startRecording(job) {
+@@ -4212,7 +4530,33 @@ async function startRecording(job) {
          .replace(/{userAgent}/g, userAgent.value)
          .replace(/{filePath}/g, fullFilePath);
  
@@ -1792,7 +1913,7 @@ index 114a601..5751243 100644
  
      console.log(`[DVR] Spawning ffmpeg for job ${job.id} with command: ffmpeg ${args.join(' ')}`);
      const ffmpeg = spawn('ffmpeg', args);
-@@ -5066,7 +5395,7 @@ app.get('*', (req, res) => {
+@@ -5066,7 +5410,7 @@ app.get('*', (req, res) => {
      if (fs.existsSync(filePath) && fs.lstatSync(filePath).isFile()) {
          return res.sendFile(filePath);
      }
