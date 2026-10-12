@@ -67,7 +67,9 @@ Puedes definir la IP del servidor de cualquiera de estas formas, **sin modificar
 ambiente-docker/
 ├── config.env                      # Configuración central y detección dinámica de IP
 ├── deploy-remote.sh                # Script maestro de despliegue remoto
-├── Makefile                        # Accesos directos: make deploy, make token, etc.
+├── docker-compose.oracle.yml       # Docker Compose para Oracle 19c
+├── docker-compose.viniplay.yml     # Docker Compose para ViniPlay
+├── Makefile                        # Automatización: make deploy-*, status-*, etc.
 ├── scripts/
 │   ├── 01-install-k3s.sh           # Instalación de K3s con IP dinámica para TLS/SAN
 │   ├── 02-install-dashboard.sh     # Despliegue de Kubernetes Dashboard (NodePort 30443)
@@ -76,12 +78,12 @@ ambiente-docker/
 │   ├── 05-setup-local-kubectl.sh   # Configuración de kubectl en tu máquina local
 │   └── uninstall-k3s.sh            # Desinstalador limpio de K3s
 └── manifests/
-    ├── dashboard/
-    │   ├── recommended.yaml        # Manifiesto oficial del Dashboard v2.7.0
-    │   ├── dashboard-nodeport.yaml # Servicio NodePort 30443
-    │   └── admin-user.yaml         # RBAC admin-user y Secret persistente
-    └── sample-app/
-        └── sample-app.yaml         # Aplicación de prueba sin IPs fijas
+    ├── dashboard/                  # Kubernetes Dashboard y RBAC
+    ├── postgres/                   # PostgreSQL 16 con PVC y LoadBalancer
+    ├── oracle19c/                  # Oracle Database 19c con PVC y LoadBalancer
+    ├── app-task/                   # Backend Spring Boot 3 + Frontend Angular 18
+    ├── viniplay/                   # ViniPlay IPTV Player, TV Guide & DVR
+    └── sample-app/                 # Aplicación de prueba sin IPs fijas
 ```
 
 ---
@@ -202,3 +204,28 @@ Formas de consumo:
 - **JDBC Thin URL:** `jdbc:oracle:thin:@192.168.18.228:1521/ORCLPDB1`
 - **Volumen Persistente:** 20 GB (`local-path` en `/opt/oracle/oradata`)
 - **Memoria compartida /dev/shm:** 2 GB tmpfs configurados automáticamente.
+
+---
+
+## 📺 Streaming IPTV & Multimedia: ViniPlay (Namespace `viniplay`)
+
+[ViniPlay](https://github.com/ardoviniandrea/ViniPlay) es un reproductor web IPTV avanzado con guía de programación EPG virtualizada, vista múltiple simultánea (Multi-View), grabación de emisiones en vivo (DVR / Timeshift con FFMPEG) y panel de administración.
+
+- **Despliegue rápido:** `make deploy-viniplay`
+- **Puerto Web:** `80` (vía Ingress Traefik)
+- **Acceso LAN:** `http://192.168.18.228/viniplay` (o la IP dinámica de tu servidor)
+- **Host Interno Kubernetes:** `viniplay-svc.viniplay:80`
+- **Volúmenes Persistentes (PVC local-path):**
+  - `/data` (5 GB): Base de datos SQLite (`viniplay.db`), configuración, perfiles de transcodificación y fuentes M3U/EPG.
+  - `/dvr` (10 GB): Almacenamiento de grabaciones y reproducción retrasada (Timeshift).
+- **Configuración Inicial:** Al abrir `http://192.168.18.228/viniplay` por primera vez, el sistema solicitará crear las credenciales del **Administrador inicial**. Luego, en la pestaña **Settings**, se añaden las listas M3U / EPG o credenciales XC.
+- **Gestión mediante Makefile:**
+  - Ver estado: `make status-viniplay`
+  - Ver logs en vivo: `make logs-viniplay`
+  - Pausar pod (liberar CPU/RAM): `make stop-viniplay`
+  - Reanudar pod: `make start-viniplay`
+  - Desinstalar: `make remove-viniplay`
+- **Alternativa Docker Compose:**
+  ```bash
+  docker compose -f docker-compose.viniplay.yml up -d
+  ```

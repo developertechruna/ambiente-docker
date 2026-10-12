@@ -1,0 +1,40 @@
+# ==============================================================================
+# Docker Compose para ViniPlay (IPTV Streaming & TV Guide & DVR)
+# Repositorio oficial: https://github.com/ardoviniandrea/ViniPlay
+# ==============================================================================
+
+version: "3.8"
+
+services:
+  viniplay:
+    image: ardovini/viniplay:latest
+    container_name: viniplay
+    restart: unless-stopped
+    environment:
+      - SESSION_SECRET=REDACTED_VINI_SESSION_SECRET
+      - NODE_ENV=development
+      - PORT=8998
+    volumes:
+      - viniplay_data:/data
+      - viniplay_dvr:/dvr
+    # Para aceleración por hardware (Intel QSV / VA-API), descomentar la siguiente línea:
+    # devices:
+    #   - /dev/dri:/dev/dri
+
+  # Proxy inverso Nginx para exponer la aplicación en http://<HOST>/viniplay
+  proxy:
+    image: nginx:alpine
+    container_name: viniplay-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./manifests/viniplay/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - viniplay
+
+volumes:
+  viniplay_data:
+    driver: local
+  viniplay_dvr:
+    driver: local

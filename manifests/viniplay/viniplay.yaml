@@ -1,0 +1,349 @@
+# ==============================================================================
+# Despliegue de ViniPlay (IPTV Streaming Web Player & TV Guide & DVR)
+# en Kubernetes (K3s) con enrutamiento por Subpath (/viniplay)
+# Repositorio oficial: https://github.com/ardoviniandrea/ViniPlay
+# ==============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: viniplay
+---
+# 1. Secret para la clave de sesión y variables sensibles
+apiVersion: v1
+kind: Secret
+metadata:
+  name: viniplay-secret
+  namespace: viniplay
+type: Opaque
+stringData:
+  SESSION_SECRET: "REDACTED_VINI_SESSION_SECRET"
+---
+# 2. ConfigMap con la configuración de Proxy Inverso Nginx para Subpath (/viniplay)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: viniplay-nginx-conf
+  namespace: viniplay
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name _;
+
+        client_max_body_size 500M;
+
+        # Redirigir /viniplay sin barra final a /viniplay/
+        location = /viniplay {
+            return 301 /viniplay/;
+        }
+
+        # Fallback de compatibilidad directa para proxy de imágenes de VOD / EPG
+        location /api/image-proxy {
+            proxy_pass http://127.0.0.1:8998/api/image-proxy;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+        }
+
+        # Fallback directo para streaming transcodificado (/stream)
+        location /stream {
+            proxy_pass http://127.0.0.1:8998/stream;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+
+        # Manejador del subpath /viniplay/
+        location /viniplay/ {
+            proxy_pass http://127.0.0.1:8998/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Prefix /viniplay;
+
+            # Evita compresión upstream para que sub_filter pueda modificar el contenido al vuelo
+            proxy_set_header Accept-Encoding "";
+
+            # Soporte para streaming de video continuo y baja latencia
+            proxy_buffering off;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+
+            # Reescribir rutas absolutas en el cuerpo de las respuestas
+            sub_filter_types text/html text/javascript application/javascript application/x-javascript application/json;
+            sub_filter_once off;
+
+            sub_filter 'src="/' 'src="/viniplay/';
+            sub_filter 'href="/viniplay.png"' 'href="/viniplay/viniplay.png"';
+            sub_filter 'href="/manifest.json"' 'href="/viniplay/manifest.json"';
+            sub_filter '"/js/' '"/viniplay/js/';
+            sub_filter '"/api/' '"/viniplay/api/';
+            sub_filter '"/dvr/' '"/viniplay/dvr/';
+            sub_filter '"/stream' '"/viniplay/stream';
+            sub_filter '"/sw.js"' '"/viniplay/sw.js"';
+            sub_filter "'/api/" "'/viniplay/api/";
+            sub_filter "'/dvr" "'/viniplay/dvr";
+            sub_filter "'/stream" "'/viniplay/stream";
+            sub_filter '`/stream' '`/viniplay/stream';
+            sub_filter "'/js/" "'/viniplay/js/";
+            sub_filter "'/sw.js'" "'/viniplay/sw.js'";
+
+            # Script interceptor para llamadas JavaScript dinámicas (fetch, beacon, XHR, media/img elements y pushState)
+            sub_filter '<head>' '<head><script>(function(){const P="/viniplay";const oF=window.fetch;window.fetch=function(i,n){if(typeof i==="string"&&(i.startsWith("/api/")||i.startsWith("/dvr/")||i.startsWith("/stream")||i.startsWith("/sw.js"))){i=P+i}else if(i instanceof Request){const u=new URL(i.url);if(u.pathname.startsWith("/api/")||u.pathname.startsWith("/dvr/")||u.pathname.startsWith("/stream")){i=new Request(P+u.pathname+u.search,i)}}return oF.call(this,i,n)};if(navigator.sendBeacon){const oB=navigator.sendBeacon;navigator.sendBeacon=function(u,d){if(typeof u==="string"&&(u.startsWith("/api/")||u.startsWith("/dvr/")||u.startsWith("/stream"))){u=P+u}return oB.call(this,u,d)}}const oO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...r){if(typeof u==="string"&&(u.startsWith("/api/")||u.startsWith("/dvr/")||u.startsWith("/stream"))){u=P+u}return oO.call(this,m,u,...r)};const sD=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,"src");if(sD&&sD.set){const oS=sD.set;Object.defineProperty(HTMLMediaElement.prototype,"src",{set:function(v){if(typeof v==="string"&&(v.startsWith("/stream")||v.startsWith("/dvr/")||v.startsWith("/api/"))){v=P+v}return oS.call(this,v)},get:sD.get})};const imgD=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,"src");if(imgD&&imgD.set){const oIS=imgD.set;Object.defineProperty(HTMLImageElement.prototype,"src",{set:function(v){if(typeof v==="string"&&(v.startsWith("/api/")||v.startsWith("/dvr/")||v.startsWith("/stream"))){v=P+v}return oIS.call(this,v)},get:imgD.get})};const oPush=history.pushState;history.pushState=function(s,t,u){if(typeof u==="string"){try{const parsed=new URL(u,window.location.origin);if(!parsed.pathname.startsWith(P)){parsed.pathname=P+(parsed.pathname==="/"?"":parsed.pathname);u=parsed.pathname+parsed.search+parsed.hash}}catch(e){}}return oPush.call(this,s,t,u)};const oRepl=history.replaceState;history.replaceState=function(s,t,u){if(typeof u==="string"){try{const parsed=new URL(u,window.location.origin);if(!parsed.pathname.startsWith(P)){parsed.pathname=P+(parsed.pathname==="/"?"":parsed.pathname);u=parsed.pathname+parsed.search+parsed.hash}}catch(e){}}return oRepl.call(this,s,t,u)}})();</script>';
+        }
+    }
+---
+# 3. Volumen Persistente (PVC) para Datos y Configuración (/data)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: viniplay-data-pvc
+  namespace: viniplay
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+# 4. Volumen Persistente (PVC) para Grabaciones DVR (/dvr)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: viniplay-dvr-pvc
+  namespace: viniplay
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+# 5. Despliegue de ViniPlay (Deployment con Sidecar Nginx y Adaptador de Rutas)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: viniplay
+  namespace: viniplay
+  labels:
+    app: viniplay
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: viniplay
+  template:
+    metadata:
+      labels:
+        app: viniplay
+    spec:
+      containers:
+      # Contenedor 1: Backend Node.js + FFMPEG ViniPlay
+      - name: viniplay
+        image: ardovini/viniplay:latest
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          node -e '
+          const fs = require("fs");
+          
+          // 1. Desactivar cookie seguro (permite sesiones en HTTP no seguro) y habilitar trust proxy
+          let srv = fs.readFileSync("/usr/src/app/server.js", "utf8");
+          srv = srv.replace("secure: process.env.NODE_ENV === \x27production\x27", "secure: false");
+          if (!srv.includes("trust proxy")) {
+              srv = srv.replace("const app = express();", "const app = express();\napp.set(\x27trust proxy\x27, 1);");
+          }
+          fs.writeFileSync("/usr/src/app/server.js", srv);
+
+          // 2. Parche en router cliente (ui.js, main.js, notification.js, vod.js) para preservar subpath /viniplay
+          let ui = fs.readFileSync("/usr/src/app/public/js/modules/ui.js", "utf8");
+          ui = ui.replace("const path = window.location.pathname;", "const rawPath = window.location.pathname; const path = rawPath.replace(/^\\/viniplay(\\/|$)/, \"/\") || \"/\";");
+          ui = ui.replace("if (window.location.pathname !== path)", "if (window.location.pathname.replace(/^\\/viniplay(\\/|$)/, \"/\") !== path)");
+          ui = ui.replace("window.location.origin + path", "window.location.origin + \"/viniplay\" + (path === \"/\" ? \"\" : path)");
+          ui = ui.replaceAll("window.location.origin + currentPage", "window.location.origin + \"/viniplay\" + (currentPage === \"/\" ? \"\" : currentPage)");
+          fs.writeFileSync("/usr/src/app/public/js/modules/ui.js", ui);
+
+          let main = fs.readFileSync("/usr/src/app/public/js/main.js", "utf8");
+          main = main.replace("window.location.pathname.startsWith(\x27/activity\x27)", "window.location.pathname.includes(\x27/activity\x27)");
+          main = main.replace("currentPage.startsWith(\x27/tvguide\x27)", "currentPage.includes(\x27/tvguide\x27)");
+          main = main.replace("currentPage.startsWith(\x27/dvr\x27)", "currentPage.includes(\x27/dvr\x27)");
+          main = main.replace("currentPage.startsWith(\x27/notifications\x27)", "currentPage.includes(\x27/notifications\x27)");
+          main = main.replace("currentPage.startsWith(\x27/activity\x27)", "currentPage.includes(\x27/activity\x27)");
+          fs.writeFileSync("/usr/src/app/public/js/main.js", main);
+
+          let notif = fs.readFileSync("/usr/src/app/public/js/modules/notification.js", "utf8");
+          notif = notif.replace("window.location.pathname !== \x27/tvguide\x27", "!window.location.pathname.includes(\x27/tvguide\x27)");
+          fs.writeFileSync("/usr/src/app/public/js/modules/notification.js", notif);
+
+          let vod = fs.readFileSync("/usr/src/app/public/js/modules/vod.js", "utf8");
+          vod = vod.replaceAll("\`/api/image-proxy?", "\`/viniplay/api/image-proxy?");
+          fs.writeFileSync("/usr/src/app/public/js/modules/vod.js", vod);
+
+          let pl = fs.readFileSync("/usr/src/app/public/js/modules/player.js", "utf8");
+          pl = pl.replaceAll("\`/stream?", "\`/viniplay/stream?");
+          pl = pl.replace(
+              "const streamUrlToPlay = profile.command === \x27redirect\x27",
+              "const activeVODProfile = (profile.command === \x27redirect\x27 && (url.includes(\x27.mkv\x27) || url.includes(\x27.mp4\x27) || url.includes(\x27/series/\x27) || url.includes(\x27/movie/\x27)))\n        ? (settings.streamProfiles.find(p => p.id === \x27ffmpeg-default\x27) || profile)\n        : profile;\n    const streamUrlToPlay = activeVODProfile.command === \x27redirect\x27"
+          );
+          pl = pl.replace("profileId=${profileId}&userAgentId", "profileId=${activeVODProfile.id}&userAgentId");
+          pl = pl.replace("if (profile.command !== \x27redirect\x27)", "if (activeVODProfile.command !== \x27redirect\x27)");
+          pl = pl.replace("currentProfileId = profileId;", "currentProfileId = activeVODProfile.id;");
+          fs.writeFileSync("/usr/src/app/public/js/modules/player.js", pl);
+
+          // 3. Limpiar sesiones obsoletas guardadas con secure: true
+          const sqlite3 = require("sqlite3").verbose();
+          const db = new sqlite3.Database("/data/viniplay.db");
+          db.run("DELETE FROM sessions WHERE sess LIKE \x27%\"secure\":true%\x27;", () => {
+              console.log("[VINI_PLAY_PATCH] Servidor y cliente adaptados con éxito (cookie.secure=false, trust proxy, subpath /viniplay, image-proxy, stream-vod).");
+          });
+          '
+          exec npm start
+        ports:
+        - containerPort: 8998
+          name: nodejs
+        env:
+        - name: NODE_ENV
+          value: "development"
+        - name: PORT
+          value: "8998"
+        envFrom:
+        - secretRef:
+            name: viniplay-secret
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+        volumeMounts:
+        - name: viniplay-data
+          mountPath: /data
+        - name: viniplay-dvr
+          mountPath: /dvr
+        startupProbe:
+          tcpSocket:
+            port: 8998
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 12
+        readinessProbe:
+          tcpSocket:
+            port: 8998
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 8998
+          initialDelaySeconds: 15
+          periodSeconds: 15
+
+      # Contenedor 2: Sidecar Nginx para traducción de subpath (/viniplay)
+      - name: nginx-proxy
+        image: nginx:alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: "20m"
+            memory: "32Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+        readinessProbe:
+          httpGet:
+            path: /viniplay/
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /viniplay/
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 10
+
+      volumes:
+      - name: viniplay-data
+        persistentVolumeClaim:
+          claimName: viniplay-data-pvc
+      - name: viniplay-dvr
+        persistentVolumeClaim:
+          claimName: viniplay-dvr-pvc
+      - name: nginx-conf
+        configMap:
+          name: viniplay-nginx-conf
+---
+# 6. Servicio de Red Interno (ClusterIP en puerto 80)
+apiVersion: v1
+kind: Service
+metadata:
+  name: viniplay-svc
+  namespace: viniplay
+  labels:
+    app: viniplay
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+    app: viniplay
+---
+# 7. Ingress Traefik para enrutamiento por Subpath: /viniplay y proxy de imágenes
+# Responde en: http://<IP_SERVIDOR>/viniplay y http://<IP_SERVIDOR>/api/image-proxy
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: viniplay-ingress
+  namespace: viniplay
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /viniplay
+        pathType: Prefix
+        backend:
+          service:
+            name: viniplay-svc
+            port:
+              number: 80
+      - path: /api/image-proxy
+        pathType: Prefix
+        backend:
+          service:
+            name: viniplay-svc
+            port:
+              number: 80
+      - path: /stream
+        pathType: Prefix
+        backend:
+          service:
+            name: viniplay-svc
+            port:
+              number: 80

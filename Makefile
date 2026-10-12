@@ -13,6 +13,7 @@ endif
 .PHONY: all help deploy token kubeconfig status deploy-sample remove-sample \
         deploy-postgres status-postgres remove-postgres \
         deploy-oracle status-oracle logs-oracle remove-oracle \
+        deploy-viniplay status-viniplay logs-viniplay stop-viniplay start-viniplay remove-viniplay \
         deploy-app deploy-backend deploy-frontend deploy-ingress \
         status-app logs-backend logs-frontend remove-app \
         build-and-deploy-app build-and-deploy-backend build-and-deploy-frontend clean
@@ -42,6 +43,14 @@ help:
 	@echo "   make stop-oracle             - Detiene el pod de Oracle (libera 4GB RAM)"
 	@echo "   make start-oracle            - Enciende el pod de Oracle"
 	@echo "   make remove-oracle           - Elimina el despliegue de Oracle 19c"
+	@echo ""
+	@echo " Streaming IPTV & Multimedia:"
+	@echo "   make deploy-viniplay         - Despliega ViniPlay (Web IPTV/DVR) en http://$(REMOTE_HOST)/viniplay"
+	@echo "   make status-viniplay         - Consulta estado, Pod, PVC, Service e Ingress de ViniPlay"
+	@echo "   make logs-viniplay           - Ver logs en vivo del contenedor ViniPlay"
+	@echo "   make stop-viniplay           - Detiene el pod de ViniPlay (libera RAM/CPU)"
+	@echo "   make start-viniplay          - Enciende el pod de ViniPlay"
+	@echo "   make remove-viniplay         - Elimina el despliegue de ViniPlay"
 	@echo ""
 	@echo " Aplicativos Desacoplados (Frontend y Backend):"
 	@echo "   make deploy-app              - Despliega Frontend + Backend + Ingress"
@@ -125,6 +134,36 @@ start-oracle:
 
 remove-oracle:
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl delete -f ~/k8s-setup/manifests/oracle19c/oracle19c.yaml"
+
+# ==============================================================================
+# ViniPlay - IPTV Streaming Web Player & TV Guide & DVR
+# ==============================================================================
+deploy-viniplay:
+	@echo "📦 Copiando y aplicando manifiesto de ViniPlay en $(REMOTE_HOST)..."
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/viniplay"
+	@scp -r manifests/viniplay/* $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/viniplay/
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl apply -f ~/k8s-setup/manifests/viniplay/viniplay.yaml"
+	@echo "✅ ViniPlay desplegado en el namespace 'viniplay'."
+	@echo "   Acceso Web:   http://$(REMOTE_HOST)/viniplay"
+	@echo "   Persistencia: PVC /data (SQLite/Config) y PVC /dvr (Grabaciones)"
+	@echo "   Primer uso:   Crear la cuenta de administrador al ingresar por primera vez."
+
+status-viniplay:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n viniplay get deployment,pods,svc,ingress,pvc"
+
+logs-viniplay:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n viniplay logs -l app=viniplay -c viniplay --tail=100 -f"
+
+stop-viniplay:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n viniplay scale deployment viniplay --replicas=0"
+	@echo "🛑 Pod de ViniPlay detenido (RAM y CPU liberados, datos preservados en PVC)."
+
+start-viniplay:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl -n viniplay scale deployment viniplay --replicas=1"
+	@echo "▶️  Pod de ViniPlay encendido."
+
+remove-viniplay:
+	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl delete -f ~/k8s-setup/manifests/viniplay/viniplay.yaml"
 
 # ==============================================================================
 # Aplicativos Desacoplados (Frontend y Backend)
