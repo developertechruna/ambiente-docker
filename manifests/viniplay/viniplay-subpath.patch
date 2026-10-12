@@ -1,5 +1,5 @@
 diff --git a/public/index.html b/public/index.html
-index ef6ebf9..a61e05e 100644
+index ef6ebf9..b8a00ff 100644
 --- a/public/index.html
 +++ b/public/index.html
 @@ -4,6 +4,7 @@
@@ -10,6 +10,15 @@ index ef6ebf9..a61e05e 100644
      <title>VINI PLAY</title>
      <link rel="icon" type="image/png" href="/viniplay.png">
      <script src="https://cdn.tailwindcss.com"></script>
+@@ -2951,7 +2952,7 @@
+     </div>
+ 
+ 
+-    <script type="module" src="/js/main.js?v=2"></script>
++    <script type="module" src="/js/main.js?v=3"></script>
+ 
+     <div id="processing-status-modal"
+         class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4">
 diff --git a/public/js/main.js b/public/js/main.js
 index 9fdbf93..65b330c 100644
 --- a/public/js/main.js
