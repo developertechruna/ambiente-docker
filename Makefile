@@ -10,7 +10,7 @@ ifdef HOST
 REMOTE_HOST := $(HOST)
 endif
 
-.PHONY: all help deploy token kubeconfig status deploy-sample remove-sample \
+.PHONY: all help deploy deploy-secrets token kubeconfig status deploy-sample remove-sample \
         deploy-postgres status-postgres remove-postgres \
         deploy-oracle status-oracle logs-oracle remove-oracle \
         deploy-viniplay status-viniplay logs-viniplay stop-viniplay start-viniplay remove-viniplay \
@@ -76,6 +76,10 @@ help:
 	@echo "   make remove-sample           - Elimina app de prueba"
 	@echo "=================================================================="
 
+deploy-secrets:
+	@chmod +x scripts/deploy-secrets.sh
+	@scripts/deploy-secrets.sh $(REMOTE_USER) $(REMOTE_HOST)
+
 deploy:
 	@chmod +x deploy-remote.sh scripts/*.sh
 	@./deploy-remote.sh $(REMOTE_USER)@$(REMOTE_HOST)
@@ -90,7 +94,7 @@ kubeconfig:
 status:
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "k3s kubectl get nodes -o wide && echo '' && k3s kubectl get pods -A"
 
-deploy-postgres:
+deploy-postgres: deploy-secrets
 	@echo "📦 Copiando y aplicando manifiesto de PostgreSQL en $(REMOTE_HOST)..."
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/postgres"
 	@scp -r manifests/postgres/* $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/postgres/
@@ -115,7 +119,7 @@ remove-postgres:
 # ==============================================================================
 # Oracle Database 19c
 # ==============================================================================
-deploy-oracle:
+deploy-oracle: deploy-secrets
 	@echo "📦 Copiando y aplicando manifiesto de Oracle 19c en $(REMOTE_HOST)..."
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/oracle19c"
 	@scp -r manifests/oracle19c/* $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/oracle19c/
@@ -152,7 +156,7 @@ build-viniplay:
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "podman build -t viniplay:custom -f ~/k8s-setup/manifests/viniplay/Dockerfile ~/k8s-setup/manifests/viniplay && podman save localhost/viniplay:custom | sudo k3s ctr images import -"
 	@echo "✅ Imagen viniplay:custom construida e importada en k3s containerd."
 
-deploy-viniplay:
+deploy-viniplay: deploy-secrets
 	@echo "📦 Copiando y aplicando manifiesto de ViniPlay en $(REMOTE_HOST)..."
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/viniplay"
 	@scp -r manifests/viniplay/* $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/viniplay/
@@ -242,7 +246,7 @@ generate-cert:
 	@chmod +x manifests/tls/generate-cert.sh
 	@manifests/tls/generate-cert.sh $(REMOTE_HOST)
 
-deploy-tls:
+deploy-tls: deploy-secrets
 	@echo "🔐 Desplegando configuración SSL/TLS en $(REMOTE_HOST)..."
 	@ssh $(REMOTE_USER)@$(REMOTE_HOST) "mkdir -p ~/k8s-setup/manifests/tls"
 	@scp -r manifests/tls/* $(REMOTE_USER)@$(REMOTE_HOST):~/k8s-setup/manifests/tls/

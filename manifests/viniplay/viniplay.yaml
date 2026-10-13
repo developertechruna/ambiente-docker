@@ -9,17 +9,7 @@ kind: Namespace
 metadata:
   name: viniplay
 ---
-# 1. Secret para la clave de sesión y variables sensibles
-apiVersion: v1
-kind: Secret
-metadata:
-  name: viniplay-secret
-  namespace: viniplay
-type: Opaque
-stringData:
-  SESSION_SECRET: "REDACTED_VINI_SESSION_SECRET"
----
-# 2. ConfigMap con la configuración de Proxy Inverso Nginx para Subpath (/viniplay)
+# 1. ConfigMap con la configuración de Proxy Inverso Nginx para Subpath (/viniplay)
 apiVersion: v1
 kind: ConfigMap
 metadata:

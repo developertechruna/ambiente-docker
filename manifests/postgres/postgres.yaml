@@ -7,19 +7,7 @@ kind: Namespace
 metadata:
   name: databases
 ---
-# 1. Credenciales y configuración de la Base de Datos
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secret
-  namespace: databases
-type: Opaque
-stringData:
-  POSTGRES_DB: app_task
-  POSTGRES_USER: app_task
-  POSTGRES_PASSWORD: "REDACTED_POSTGRES_PASSWORD"
----
-# 2. Volumen Persistente (PVC)
+# 1. Volumen Persistente (PVC)
 # Usa el storage provisioner 'local-path' integrado en K3s
 # Los datos NO se pierden al reiniciar o actualizar el Pod
 apiVersion: v1

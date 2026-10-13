@@ -1,0 +1,17 @@
+# Archivos de Secretos y Entorno Local
+secrets.env
+*.secrets.env
+.env
+.env.local
+.target_host
+
+# Certificados y Claves Privadas SSL/TLS
+*.key
+*.pem
+manifests/tls/tls.key
+manifests/tls/tls.crt
+
+# Logs y Archivos Temporales
+*.log
+.DS_Store
+Thumbs.db

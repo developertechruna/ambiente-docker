@@ -8,21 +8,7 @@ kind: Namespace
 metadata:
   name: databases
 ---
-# 1. Secret con las credenciales maestras y SID/PDB
-apiVersion: v1
-kind: Secret
-metadata:
-  name: oracle-secret
-  namespace: databases
-type: Opaque
-stringData:
-  # Contraseña para SYS, SYSTEM y PDBADMIN
-  ORACLE_PWD: "REDACTED_ORACLE_PASSWORD"
-  ORACLE_SID: "ORCLCDB"
-  ORACLE_PDB: "ORCLPDB1"
-  ORACLE_CHARACTERSET: "AL32UTF8"
----
-# 2. Volumen Persistente (PVC)
+# 1. Volumen Persistente (PVC)
 # Usa el storage provisioner 'local-path' integrado en K3s
 # Persiste datafiles, redo logs, controlfiles en /opt/oracle/oradata
 apiVersion: v1

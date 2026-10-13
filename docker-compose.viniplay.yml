@@ -11,7 +11,7 @@ services:
     container_name: viniplay
     restart: unless-stopped
     environment:
-      - SESSION_SECRET=REDACTED_VINI_SESSION_SECRET
+      - SESSION_SECRET=${VINI_SESSION_SECRET:-replace_this_with_a_very_long_random_and_secret_string}
       - NODE_ENV=development
       - PORT=8998
     volumes:

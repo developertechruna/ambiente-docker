@@ -3,18 +3,7 @@
 # Conexión directa a PostgreSQL en namespace 'databases'
 # ==============================================================================
 
-# 1. Credenciales de Base de Datos
-apiVersion: v1
-kind: Secret
-metadata:
-  name: app-backend-secret
-  namespace: tasks-app
-type: Opaque
-stringData:
-  DB_USER: app_task
-  DB_PASSWORD: "REDACTED_POSTGRES_PASSWORD"
----
-# 2. Configuración del Microservicio Backend
+# 1. Configuración del Microservicio Backend
 apiVersion: v1
 kind: ConfigMap
 metadata:
