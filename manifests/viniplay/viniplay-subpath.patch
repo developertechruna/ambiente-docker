@@ -1,5 +1,5 @@
 diff --git a/public/index.html b/public/index.html
-index ef6ebf9..decc4d6 100644
+index ef6ebf9..7fd49af 100644
 --- a/public/index.html
 +++ b/public/index.html
 @@ -4,6 +4,7 @@
@@ -130,7 +130,7 @@ index ef6ebf9..decc4d6 100644
  
  
 -    <script type="module" src="/js/main.js?v=2"></script>
-+    <script type="module" src="/js/main.js?v=9"></script>
++    <script type="module" src="/js/main.js?v=10"></script>
  
      <div id="processing-status-modal"
          class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4">
@@ -427,7 +427,7 @@ index e9b1f47..7dcb920 100644
              body: JSON.stringify({ streamUrl: url })
 diff --git a/public/js/modules/dashboard.js b/public/js/modules/dashboard.js
 new file mode 100644
-index 0000000..048e46c
+index 0000000..d9dff1c
 --- /dev/null
 +++ b/public/js/modules/dashboard.js
 @@ -0,0 +1,452 @@
@@ -439,10 +439,10 @@ index 0000000..048e46c
 + * 3. Series en Curso (Resumen de episodios vistos/totales y reanudación)
 + */
 +
-+import { apiFetch } from './api.js';
++import { apiFetch, fetchConfig } from './api.js';
 +import { withBase } from './basePath.js';
 +import { playVOD, playChannel } from './player.js';
-+import { guideState, fetchConfig } from './state.js';
++import { guideState } from './state.js';
 +
 +let isDashboardLoading = false;
 +
